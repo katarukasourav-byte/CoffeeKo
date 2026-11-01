@@ -1,0 +1,28 @@
+/* =====================================================================
+   THEME — colours and fonts for the whole site.
+   Change a hex value (e.g. #D4B08C) and every button, ring and accent
+   that uses it updates. Pick colours at https://htmlcolorcodes.com
+   ===================================================================== */
+:root{
+  /* Backgrounds */
+  --sage:#000000;          /* page background */
+  --espresso:#000000;
+  --paper:#0E0E0E;         /* cards */
+  --sage-deep:#1A1A1A;
+
+  /* Text */
+  --ink:#F2EEE9;           /* main text */
+  --ink-soft:#9A928B;      /* secondary text */
+
+  /* Accents */
+  --accent:#D4B08C;        /* crema: main buttons, selected chips, rings */
+  --good:#6FAF8A;          /* green: great matches, "loved" */
+  --cherry:#D0574F;        /* red: warnings, "not for me" */
+
+  /* Older names still used in a few places — keep in step with the above */
+  --leaf:#D4B08C; --leaf-soft:#241D15; --cherry-soft:#2A1514; --ripe:#D4B08C; --ripe-soft:#1F1910; --line:#2C2C2C;
+
+  /* Fonts. To change them, also update the Google Fonts link in index.html */
+  --f-ui:"Bricolage Grotesque", system-ui, sans-serif;   /* headings and interface */
+  --f-story:"Literata", Georgia, serif;                   /* story captions and descriptions */
+}

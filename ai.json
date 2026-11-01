@@ -1,0 +1,38 @@
+{
+  "_help": "AI SETTINGS. Used only by the server function, never sent to browsers. Edit values, keep the quotes and commas. Daily limits are per user per day (UTC).",
+  "provider": "anthropic",
+  "model": "claude-haiku-5-5",
+  "maxTokens": 6000,
+  "dailyLimits": {
+    "identify": 15,
+    "identify_bulk": 40,
+    "picks": 5,
+    "similar": 10
+  },
+  "exploreCount": 12,
+  "similarCount": 3,
+  "indianRoasters": [
+    "Blue Tokai",
+    "Third Wave Coffee",
+    "Subko",
+    "KC Roasters",
+    "Corridor Seven",
+    "Black Baza",
+    "Araku",
+    "Kapi Kottai",
+    "Dope Coffee Roasters",
+    "Savorworks",
+    "Bloom Coffee Roasters",
+    "Grey Soul"
+  ],
+  "maxImportedPicks": 2,
+  "country": "India",
+  "shops": [
+    "Roaster website",
+    "Amazon.in",
+    "Roaster café",
+    "Supermarkets"
+  ],
+  "extraGuidance": "Prefer coffees suited to pour-over. Keep 'why' sentences short and friendly.",
+  "_limits_help": "identify = single bag scans; identify_bulk = photos added in one go when setting up a profile; picks = Explore refreshes; similar = 'if you liked this' suggestions."
+}

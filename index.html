@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palate &amp; Pour</title>
+<meta name="description" content="Find your coffee taste, match coffees available in India to your palate, and track the beans on your shelf.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,300..800&family=Literata:ital,opsz,wght@0,7..72,300..600;1,7..72,300..500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="config/theme.css">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+<header class="bar on-story" id="bar">
+  <a class="brand" href="#top">Palate &amp; Pour</a>
+  <nav aria-label="Main">
+    <a href="#top" id="navStory">Bean to cup</a>
+    <a href="#profile" id="navApp">My coffee</a>
+  </nav>
+</header>
+
+<main>
+<section id="story" aria-label="From seed to cup">
+  <div class="stage" id="stage">
+    <div id="photos"></div>
+    <div class="shade"></div>
+    <div class="photo-credit" id="credit"></div>
+    <div class="hero-text" id="hero">
+      <h1 id="top">Every cup was once a seed.</h1>
+      <p>Scroll to follow one Arabica bean back to the soil, then forward again to your pour-over.</p>
+      <div class="scroll-cue"><span></span>Scroll</div>
+    </div>
+    <div id="captions"></div>
+    <div class="stage-meter" id="meter"></div>
+  </div>
+</section>
+
+<section id="app" aria-label="Your coffee">
+  <nav class="subnav" aria-label="Your coffee sections">
+    <div class="subnav-in">
+      <a href="#profile">Taste ID</a><a href="#explore">Explore</a><a href="#journal">Journal</a><a href="#shelf">Shelf</a>
+      <span class="sn-sp"></span><span class="store-note" id="storeNote">Loading…</span>
+      <button class="btn accent small" id="scanTop">Scan a bag</button><button class="btn quiet small" id="signOut">Sign out</button>
+    </div>
+  </nav>
+  <div id="auth"></div>
+  <div class="dash">
+    <section class="dsec" id="profile" aria-label="Taste ID"><div id="profile-body"></div></section>
+    <section class="dsec" id="explore" aria-labelledby="xh">
+      <div class="sec-h"><div><h2 id="xh">Explore</h2><p>Coffees you can buy in India, ranked by how well they match you.</p></div>
+        <div class="actions"><button class="btn ghost small" id="xRefresh" data-act="refresh-explore" hidden>Refresh</button><button class="btn accent" id="mmBtn" data-act="mm">Open Match maker</button></div></div>
+      <div id="explore-body"></div>
+    </section>
+    <section class="dsec" id="journal" aria-labelledby="jh">
+      <div class="sec-h"><div><h2 id="jh">Journal</h2><p>Every coffee you’ve tried, and the ones waiting to be tried.</p></div></div>
+      <div id="journal-body"></div>
+    </section>
+    <section class="dsec" id="shelf" aria-labelledby="sh">
+      <div class="sec-h"><div><h2 id="sh">Shelf</h2><p>What’s at home, how fresh it is, and what to brew first.</p></div></div>
+      <div id="shelf-body"></div>
+    </section>
+  </div>
+</section>
+</main>
+<footer>Freshness windows are rules of thumb for whole-bean pour-over. Coffee suggestions come from Claude; availability and prices in India change, so check before you buy.</footer>
+<div class="sheet-wrap" id="sheetWrap"><div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Coffee"></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Editable settings and content -->
+<script src="config/settings.js"></script>
+<script src="config/content.js"></script>
+<!-- Site code -->
+<script src="js/story.js"></script>
+<script type="module" src="js/data.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
