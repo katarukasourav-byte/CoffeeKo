@@ -1,0 +1,16 @@
+/* Login screens and signed-in state */
+body:not(.signed-in) .dash,body:not(.signed-in) .subnav a,body:not(.signed-in) #scanTop,body:not(.signed-in) #signOut{display:none}
+body.signed-in #auth{display:none}
+body:not(.signed-in) .store-note{display:none}
+#auth{max-width:1200px;margin:0 auto;padding:clamp(48px,8vw,96px) clamp(16px,4vw,48px)}
+.auth-wrap{display:grid;gap:40px;align-items:center}
+@media (min-width:880px){.auth-wrap{grid-template-columns:1.1fr .9fr}}
+.auth-intro h2{margin:0;font-size:clamp(38px,5.4vw,68px);font-weight:680;letter-spacing:-.04em;line-height:.98;font-variation-settings:"wdth" 78,"opsz" 96;background:linear-gradient(100deg,#F6EDE2 20%,#D4B08C 75%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.auth-intro p{font-family:var(--f-story);font-size:18px;line-height:1.6;color:#CFC6BD;max-width:32rem;margin:18px 0 0}
+.auth-card{padding:clamp(24px,3.5vw,38px);border-radius:28px;background:radial-gradient(90% 60% at 100% 0%,rgba(212,176,140,.12),transparent 60%),#0D0D0D;border:1px solid #221E19}
+.auth-card h3{margin:0 0 22px;font-size:24px;font-weight:640}
+.auth-card input[type=email],.auth-card input[type=password]{width:100%;border:1px solid #2A2A2A;background:#141414;color:var(--ink);border-radius:12px;padding:12px 14px;font-size:15.5px}
+.auth-card .field .muted{display:block;margin-top:6px;font-size:13px}
+.auth-alt{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-top:18px}
+.linkbtn{background:none;border:0;color:var(--accent);cursor:pointer;padding:0;font-weight:600;font-size:inherit}
+.linkbtn:hover{text-decoration:underline}
