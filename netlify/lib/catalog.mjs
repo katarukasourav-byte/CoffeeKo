@@ -113,7 +113,7 @@ export async function extractBatch(n) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': env('ANTHROPIC_API_KEY'), 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: ai.model, max_tokens: 3000, messages: [{ role: 'user', content: PROMPT(todo) }] }),
+    body: JSON.stringify({ model: ai.model, max_tokens: 4000, ...(ai.thinking === false ? { thinking: { type: 'disabled' } } : {}), messages: [{ role: 'user', content: PROMPT(todo) }] }),
     signal: AbortSignal.timeout(25000)
   });
   const out = await r.json();

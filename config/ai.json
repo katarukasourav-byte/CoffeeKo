@@ -2,7 +2,7 @@
   "_help": "AI SETTINGS. Used only by the server function, never sent to browsers. Edit values, keep the quotes and commas. Daily limits are per user per day (UTC).",
   "provider": "anthropic",
   "model": "claude-haiku-5-5",
-  "maxTokens": 6000,
+  "maxTokens": 3000,
   "dailyLimits": {
     "identify": 15,
     "identify_bulk": 40,
@@ -11,5 +11,7 @@
   "country": "India",
   "extraGuidance": "Prefer coffees suited to pour-over. Keep 'why' sentences short and friendly.",
   "_limits_help": "identify = single bag scans; identify_bulk = photos added in one go when setting up a profile; find = 'search the web' for a coffee that isn't in the catalogue (each uses up to findSearches web searches, about $0.01 each). Recommendations and 'similar coffees' no longer use AI: they come from the catalogue.",
-  "findSearches": 2
+  "findSearches": 2,
+  "thinking": false,
+  "_thinking_help": "thinking: false switches off the model's step-by-step thinking for these simple reading jobs. It is faster and cheaper. Set true if scans start getting things wrong."
 }

@@ -39,7 +39,7 @@ async function callAnthropic(prompt, image) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': env('ANTHROPIC_API_KEY'), 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: cfg.model, max_tokens: cfg.maxTokens || 6000, messages: [{ role: 'user', content }] })
+    body: JSON.stringify({ model: cfg.model, max_tokens: cfg.maxTokens || 3000, ...(cfg.thinking === false ? { thinking: { type: 'disabled' } } : {}), messages: [{ role: 'user', content }] })
   });
   const out = await r.json();
   if (!r.ok) throw new Error('Anthropic: ' + (out.error?.message || r.status));
@@ -86,7 +86,7 @@ async function findCoffee(q) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': env('ANTHROPIC_API_KEY'), 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: cfg.model, max_tokens: 2000, messages: [{ role: 'user', content: FIND_PROMPT(clip(q, 120)) }],
+    body: JSON.stringify({ model: cfg.model, max_tokens: 3000, ...(cfg.thinking === false ? { thinking: { type: 'disabled' } } : {}), messages: [{ role: 'user', content: FIND_PROMPT(clip(q, 120)) }],
       tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: cfg.findSearches || 2, user_location: { type: 'approximate', country: 'IN', timezone: 'Asia/Kolkata' } }] })
   });
   const out = await r.json();
