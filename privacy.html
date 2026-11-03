@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy and your data · CoffeeKo</title>
+<meta name="description" content="What CoffeeKo stores, why, who helps us run it, and how to delete your account.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="config/theme.css">
+<style>
+body{margin:0;background:var(--sage);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.65;font-size:16.5px}
+main{max-width:720px;margin:0 auto;padding:40px 20px 80px}
+a{color:var(--accent)}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:40px}
+.top a.brand{color:var(--ink);font-weight:700;text-decoration:none;font-size:20px}
+h1{font-size:clamp(32px,6vw,46px);line-height:1.05;letter-spacing:-.02em;margin:0 0 10px}
+h2{font-size:20px;margin:36px 0 8px;color:var(--accent)}
+p,li{color:#D6CEC6}
+.muted{color:var(--ink-soft);font-size:14px}
+ul{padding-left:20px}
+li{margin:6px 0}
+.box{border:1px solid #2A2520;background:#120F0C;border-radius:16px;padding:16px 18px;margin:18px 0}
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><a class="brand" href="/">CoffeeKo</a><a href="/">Back to the site</a></div>
+  <h1>Privacy and your data</h1>
+  <p class="muted">Last updated 4 November 2026. Written in plain language; if anything is unclear, <a href="/#contact">send us a message</a>.</p>
+
+  <div class="box">In short: we keep only what’s needed to build your Coffee Personality and remember your coffees. We don’t show ads, we don’t sell your data, and you can delete everything yourself at any time.</div>
+
+  <h2>What we store</h2>
+  <ul>
+    <li><b>Your account:</b> email address, first name and password. Passwords are stored scrambled (hashed) by our login provider; we can’t see them.</li>
+    <li><b>Your coffee profile:</b> quiz answers, ratings, notes, saved coffees, and the bags on your shelf with roast dates and grams left.</li>
+    <li><b>Bag photos:</b> a small preview (about 320 pixels wide) is saved with the coffee in your journal so you can recognise it later.</li>
+    <li><b>Daily usage counts:</b> how many scans and searches you’ve used today, so we can keep within fair-use limits.</li>
+  </ul>
+
+  <h2>How photos are used</h2>
+  <p>When you scan a bag, the photo is sent to an AI service (Claude, made by Anthropic) to read the label: coffee name, roaster, origin and tasting notes. Only the small preview is kept on CoffeeKo. We don’t use your photos for anything else and don’t share them with roasters or advertisers.</p>
+
+  <h2>Who helps us run CoffeeKo</h2>
+  <ul>
+    <li><b>Supabase:</b> stores accounts and coffee data. Our database is hosted in Seoul, South Korea.</li>
+    <li><b>Netlify:</b> hosts the website and delivers messages sent through the contact form.</li>
+    <li><b>Anthropic (Claude):</b> reads bag photos, reads roasters’ product descriptions, and runs “Search the web” requests. See <a href="https://www.anthropic.com/legal/privacy" rel="noopener">Anthropic’s privacy policy</a>.</li>
+    <li><b>Brevo:</b> sends account emails such as sign-up confirmation and password reset.</li>
+  </ul>
+  <p>Each of them processes data only to provide their service to us.</p>
+
+  <h2>When you contact us</h2>
+  <p>Messages sent through “Feedback &amp; contact” (your name, email, optional phone number and message) are delivered to the CoffeeKo team through Netlify and used only to reply to you.</p>
+
+  <h2>What we don’t do</h2>
+  <ul>
+    <li>No advertising, and no advertising or tracking cookies.</li>
+    <li>No selling or renting of your data.</li>
+    <li>No marketing emails unless you separately opt in (we don’t send any today).</li>
+  </ul>
+  <p>Your browser stores your sign-in session and a few display preferences (such as filters), which the site needs to work.</p>
+
+  <h2>Links to roasters</h2>
+  <p>Coffee details, prices and photos come from each roaster’s own online shop, in the roaster’s own currency. When you tap “Buy”, you go to the roaster’s website, which has its own privacy policy. We don’t earn a commission today.</p>
+
+  <h2>Delete your account</h2>
+  <p>Signed in, open <b>Account</b> (top right of your dashboard) → <b>Delete my account</b>. This permanently removes your account, Coffee Personality, journal, shelf and photos straight away. Or <a href="/#contact">send us a message</a> from your account’s email address and we’ll do it for you.</p>
+
+  <h2>Your rights</h2>
+  <p>You can ask us what we hold about you, ask us to correct it, or ask us to delete it. Depending on where you live, data protection laws (such as the GDPR in Europe or India’s Digital Personal Data Protection Act) may give you further rights. <a href="/#contact">Send us a message</a>; we aim to reply within a week.</p>
+
+  <h2>Changes</h2>
+  <p>If we change how we use your data, we’ll update this page and the date at the top, and tell you in the app for any important change.</p>
+</main>
+</body>
+</html>

@@ -1,5 +1,5 @@
 /* Login screens and signed-in state */
-body:not(.signed-in) .dash,body:not(.signed-in) .subnav a,body:not(.signed-in) #scanTop,body:not(.signed-in) #signOut{display:none}
+body:not(.signed-in) .dash,body:not(.signed-in) .subnav a,body:not(.signed-in) #signOut{display:none}
 body.signed-in #auth{display:none}
 body:not(.signed-in) .store-note{display:none}
 #auth{max-width:1200px;margin:0 auto;padding:clamp(48px,8vw,96px) clamp(16px,4vw,48px)}
@@ -14,3 +14,9 @@ body:not(.signed-in) .store-note{display:none}
 .auth-alt{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-top:18px}
 .linkbtn{background:none;border:0;color:var(--accent);cursor:pointer;padding:0;font-weight:600;font-size:inherit}
 .linkbtn:hover{text-decoration:underline}
+
+.auth-tabs{display:flex;gap:4px;padding:4px;background:#121212;border:1px solid #222;border-radius:999px;margin:0 0 22px}
+.auth-tabs button{flex:1;border:0;background:transparent;color:var(--ink-soft);font:inherit;font-weight:600;font-size:15px;padding:10px 12px;border-radius:999px;cursor:pointer}
+.auth-tabs button[aria-selected="true"]{background:var(--ink);color:#000}
+#auth{scroll-margin-top:64px}
+#auth{padding-top:max(92px,clamp(48px,8vw,96px))}

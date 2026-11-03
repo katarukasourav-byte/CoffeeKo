@@ -8,8 +8,10 @@ const lerp=(a,b,t)=>a+(b-a)*t;
 const ss=(a,b,v)=>{const t=clamp((v-a)/(b-a));return t*t*(3-2*t);};
 /* Each stage: photo file, scroll range [a,b] (0–1 of the story), focus point for zooming, caption. */
 const SITE=window.SITE;
-/* Phones get lighter photos from photos/m/; big screens get the 4K set. */
-const DIR=Math.max(innerWidth,innerHeight)*(devicePixelRatio||1)<1900?'photos/m/':'photos/';
+/* Phones and tablets get lighter photos from photos/m/ (about 1800 px, still sharp
+   on high-density screens); laptops and big screens get the 4K set. Loading 4K
+   photos on phones used to make the first visit slow or crash. */
+const DIR=Math.max(screen.width||0,screen.height||0,innerWidth,innerHeight)<=1100?'photos/m/':'photos/';
 /* Build stages from config/content.js. Scroll ranges are spread evenly. */
 const RAW=SITE.story;
 const Z0=RAW[0].zoomInto||{photoWidth:3983,photoHeight:5233,x:1700,y:3250,closeup:'01-roasted-bean-crease',closeupWidth:1800,closeupHeight:1200};
@@ -23,26 +25,33 @@ const STAGES=RAW.map((r,i)=>{
 document.querySelector('#hero h1').textContent=SITE.hero.title;
 document.querySelector('#hero p').textContent=SITE.hero.sub;
 document.querySelector('#hero .scroll-cue').lastChild.textContent=SITE.hero.scrollLabel||'Scroll';
+if(SITE.hero.button)document.querySelector('#hero .hero-cta').textContent=SITE.hero.button;
+document.querySelector('#hero .hero-note').textContent=SITE.hero.buttonNote||'';
 const wrap=document.getElementById('photos'), capWrap=document.getElementById('captions'), meter=document.getElementById('meter');
 STAGES.forEach((s,i)=>{
   const d=document.createElement('div');d.className='ph';
-  const img=new Image();img.alt=s.alt;img.decoding='async';if(i>2)img.loading='lazy';
+  const img=new Image();img.alt=s.alt;img.decoding='async';
   img.style.objectPosition=s.focus;img.style.transformOrigin=s.focus;
-  img.onerror=()=>{if(!img.dataset.tried){img.dataset.tried=1;img.src='photos/'+s.f+'.jpg';}else{d.classList.add('missing');d.dataset.label='Photo: '+s.alt;img.remove();}};
-  img.src=(i===0?'photos/':DIR)+s.f+'.jpg';  /* the zooming bean always loads full size */
+  img.onerror=()=>{if(!img.dataset.tried){img.dataset.tried=1;img.src='photos/'+s.f+'.jpg';}else{d.classList.add('missing');d.dataset.label='Photo: '+s.alt;}};
+  s.src=DIR+s.f+'.jpg';if(i===0)img.src=s.src;     /* other photos load just before they are needed */
   d.appendChild(img);wrap.appendChild(d);s.el=d;s.img=img;
-  if(s.detail){d.classList.add('bean');img.classList.add('main');img.style.transformOrigin=`${s.cx*100}% ${s.cy*100}%`;const di=new Image();di.alt='';di.className='detail';di.decoding='async';di.src='photos/'+s.detail+'.jpg';di.style.transformOrigin=s.detailFocus;di.style.objectPosition=s.detailFocus;d.appendChild(di);s.det=di;}
-  if(s.h){const c=document.createElement('div');c.className='caption';c.innerHTML='';const hb=document.createElement('b');hb.textContent=s.h;c.appendChild(hb);c.appendChild(document.createTextNode(s.t||''));if(s.cta){c.appendChild(document.createElement('br'));const a=document.createElement('a');a.className='cta';a.href='#profile';a.textContent=s.cta;c.appendChild(a);}capWrap.appendChild(c);s.cap=c;}
+  if(s.detail){d.classList.add('bean');img.classList.add('main');img.style.transformOrigin=`${s.cx*100}% ${s.cy*100}%`;const di=new Image();di.alt='';di.className='detail';di.decoding='async';s.dsrc=DIR+s.detail+'.jpg';di.style.transformOrigin=s.detailFocus;di.style.objectPosition=s.detailFocus;d.appendChild(di);s.det=di;}
+  if(s.h){const c=document.createElement('div');c.className='caption';c.innerHTML='';const hb=document.createElement('b');hb.textContent=s.h;c.appendChild(hb);c.appendChild(document.createTextNode(s.t||''));if(s.cta){c.appendChild(document.createElement('br'));const a=document.createElement('a');a.className='cta';a.href='#profile';a.dataset.act='mycoffee';a.textContent=s.cta;c.appendChild(a);}capWrap.appendChild(c);s.cap=c;}
   meter.appendChild(document.createElement('i'));
 });
+const line=document.createElement('div');line.className='story-line';document.getElementById('stage').appendChild(line);
 const stage=document.getElementById('stage'), credit=document.getElementById('credit'), shade=document.querySelector('.shade'), hero=document.getElementById('hero'), story=document.getElementById('story'), bar=document.getElementById('bar');
+/* Load photos in order, a little ahead of the scroll position */
+function want(P){STAGES.forEach((s,i)=>{if(i&&!s.img.src&&P>s.a-.12)s.img.src=s.src;if(s.det&&!s.det.src&&P>.004)s.det.src=s.dsrc;});}
+addEventListener('load',()=>{const q=STAGES.filter((s,i)=>i);let k=0;const next=()=>{const s=q[k++];if(!s)return;if(!s.img.src)s.img.src=s.src;setTimeout(()=>window.requestIdleCallback?requestIdleCallback(next,{timeout:1500}):next(),500);};
+  const first=STAGES[0];if(first.det&&!first.det.src)first.det.src=first.dsrc;setTimeout(next,1200);});
 function render(){
   const r=story.getBoundingClientRect();
-  const P=clamp(-r.top/(story.offsetHeight-innerHeight));
+  const P=clamp(-r.top/(story.offsetHeight-innerHeight));want(P);
   const onStory=r.bottom>60;
   bar.classList.toggle('on-story',onStory);bar.classList.toggle('on-app',!onStory);
-  shade.style.opacity=ss(.1,.135,P);
-  hero.style.opacity=1-ss(0,.03,P);hero.style.transform=`translateY(${-ss(0,.03,P)*30}px)`;
+  shade.style.opacity=ss(.1,.135,P);line.style.width=(P*100).toFixed(2)+'%';
+  hero.style.opacity=1-ss(0,.03,P);hero.style.visibility=P>.04?'hidden':'visible';hero.style.transform=`translateY(${-ss(0,.03,P)*30}px)`;
   let cur=0;
   STAGES.forEach((s,i)=>{
     const fin=i===0?1:ss(s.a,s.a+.02,P);

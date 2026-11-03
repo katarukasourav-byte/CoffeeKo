@@ -1,0 +1,374 @@
+{
+  "_help": "COFFEE CATALOGUE. The site reads real coffees from these roasters' online shops every hour (one roaster at a time), so links, prices and packaging photos stay current. To add a roaster, copy a block. 'country' is where the roaster is based (two letters, e.g. GB) and 'currency' is the shop's currency (e.g. GBP). 'domains' can list more than one address; the first that works is used. Only shops built on Shopify can be read automatically.",
+  "roasters": [
+    {
+      "name": "Blue Tokai",
+      "domains": [
+        "bluetokaicoffee.com"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Subko",
+      "domains": [
+        "subko.coffee",
+        "www.subko.coffee"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "KC Roasters",
+      "domains": [
+        "kcroasters.com",
+        "www.kcroasters.com"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Corridor Seven",
+      "domains": [
+        "corridorseven.coffee",
+        "www.corridorseven.coffee"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Black Baza",
+      "domains": [
+        "blackbazacoffee.com",
+        "www.blackbazacoffee.com"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Araku",
+      "domains": [
+        "arakucoffee.in",
+        "www.arakucoffee.in"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Kapi Kottai",
+      "domains": [
+        "kapikottai.com",
+        "www.kapikottai.com",
+        "kapikottai.in"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Dope Coffee Roasters",
+      "domains": [
+        "dopecoffee.in",
+        "www.dopecoffee.in"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Savorworks",
+      "domains": [
+        "savorworksroasters.com",
+        "savorworks.com",
+        "www.savorworks.com"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Bloom Coffee Roasters",
+      "domains": [
+        "bloomcoffeeroasters.com",
+        "bloomcoffeeroasters.in",
+        "www.bloomcoffeeroasters.com"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Grey Soul",
+      "domains": [
+        "greysoul.coffee",
+        "greysoulcoffee.com",
+        "www.greysoul.coffee"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Naivo",
+      "domains": [
+        "naivo.in",
+        "www.naivo.in"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Rossette Coffee Lab",
+      "domains": [
+        "rossettecoffeelab.com",
+        "www.rossettecoffeelab.com"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Third Wave Coffee",
+      "domains": [
+        "thirdwavecoffeeroasters.com",
+        "www.thirdwavecoffeeroasters.com",
+        "thirdwavecoffee.in"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Devans",
+      "domains": [
+        "devans.in",
+        "www.devans.in"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Ainmane",
+      "domains": [
+        "ainmane.com",
+        "www.ainmane.com"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Seven Beans",
+      "domains": [
+        "sevenbeans.in",
+        "www.sevenbeans.in"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Curious Life",
+      "domains": [
+        "curiouslife.coffee",
+        "www.curiouslife.coffee"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Baarbara Berry",
+      "domains": [
+        "baarbaraberry.com",
+        "www.baarbaraberry.com"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Bili Hu",
+      "domains": [
+        "bilihu.in",
+        "www.bilihu.in",
+        "bilihucoffee.com"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Quick Brown Fox",
+      "domains": [
+        "quickbrownfox.coffee",
+        "www.quickbrownfox.coffee",
+        "qbfcoffee.com"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Marc's Coffee",
+      "domains": [
+        "marcscoffee.in",
+        "www.marcscoffee.in"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Tulum Coffee",
+      "domains": [
+        "www.tulum.coffee",
+        "tulum.coffee"
+      ],
+      "country": "IN",
+      "currency": "INR"
+    },
+    {
+      "name": "Square Mile",
+      "domains": [
+        "shop.squaremilecoffee.com"
+      ],
+      "country": "GB",
+      "currency": "GBP"
+    },
+    {
+      "name": "Origin Coffee",
+      "domains": [
+        "origincoffee.co.uk",
+        "www.origincoffee.co.uk"
+      ],
+      "country": "GB",
+      "currency": "GBP"
+    },
+    {
+      "name": "Assembly Coffee",
+      "domains": [
+        "assemblycoffee.co.uk",
+        "www.assemblycoffee.co.uk"
+      ],
+      "country": "GB",
+      "currency": "GBP"
+    },
+    {
+      "name": "Workshop Coffee",
+      "domains": [
+        "workshopcoffee.com",
+        "www.workshopcoffee.com"
+      ],
+      "country": "GB",
+      "currency": "GBP"
+    },
+    {
+      "name": "Onyx Coffee Lab",
+      "domains": [
+        "onyxcoffeelab.com",
+        "www.onyxcoffeelab.com"
+      ],
+      "country": "US",
+      "currency": "USD"
+    },
+    {
+      "name": "Verve Coffee",
+      "domains": [
+        "www.vervecoffee.com",
+        "vervecoffee.com"
+      ],
+      "country": "US",
+      "currency": "USD"
+    },
+    {
+      "name": "Stumptown",
+      "domains": [
+        "www.stumptowncoffee.com",
+        "stumptowncoffee.com"
+      ],
+      "country": "US",
+      "currency": "USD"
+    },
+    {
+      "name": "Sey Coffee",
+      "domains": [
+        "www.seycoffee.com",
+        "seycoffee.com"
+      ],
+      "country": "US",
+      "currency": "USD"
+    },
+    {
+      "name": "Black & White Coffee",
+      "domains": [
+        "www.blackwhiteroasters.com",
+        "blackwhiteroasters.com"
+      ],
+      "country": "US",
+      "currency": "USD"
+    },
+    {
+      "name": "La Cabra",
+      "domains": [
+        "lacabra.dk",
+        "www.lacabra.dk",
+        "lacabra.com"
+      ],
+      "country": "DK",
+      "currency": "EUR"
+    },
+    {
+      "name": "The Coffee Collective",
+      "domains": [
+        "coffeecollective.dk",
+        "www.coffeecollective.dk"
+      ],
+      "country": "DK",
+      "currency": "DKK"
+    },
+    {
+      "name": "April Coffee",
+      "domains": [
+        "aprilcoffeeroasters.com",
+        "www.aprilcoffeeroasters.com"
+      ],
+      "country": "DK",
+      "currency": "EUR"
+    },
+    {
+      "name": "Friedhats",
+      "domains": [
+        "friedhats.com",
+        "www.friedhats.com"
+      ],
+      "country": "NL",
+      "currency": "EUR"
+    },
+    {
+      "name": "Raw Coffee Company",
+      "domains": [
+        "rawcoffeecompany.com",
+        "www.rawcoffeecompany.com"
+      ],
+      "country": "AE",
+      "currency": "AED"
+    },
+    {
+      "name": "Market Lane",
+      "domains": [
+        "marketlane.com.au",
+        "www.marketlane.com.au"
+      ],
+      "country": "AU",
+      "currency": "AUD"
+    },
+    {
+      "name": "Phil & Sebastian",
+      "domains": [
+        "philsebastian.com",
+        "www.philsebastian.com"
+      ],
+      "country": "CA",
+      "currency": "CAD"
+    },
+    {
+      "name": "Pilot Coffee",
+      "domains": [
+        "pilotcoffeeroasters.com",
+        "www.pilotcoffeeroasters.com"
+      ],
+      "country": "CA",
+      "currency": "CAD"
+    }
+  ],
+  "extractPerRun": 6,
+  "_adminHelp": "Fingerprint (SHA-256) of the private key used to refresh the catalogue by hand. Not the key itself, so it is safe in a public repository.",
+  "adminTokenSha256": "31e5190b097402bac49d63e58962dacc3cf7bb696419da905ccf84ef84d184db"
+}
