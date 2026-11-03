@@ -1,0 +1,168 @@
+{
+  "_help": "COFFEE CATALOGUE. The site reads real coffees from these roasters' online shops every hour (one roaster at a time), so links, prices and packaging photos stay current. To add a roaster, copy a line. 'domains' can list more than one address; the first that works is used. Only shops built on Shopify can be read automatically.",
+  "roasters": [
+    {
+      "name": "Blue Tokai",
+      "domains": [
+        "bluetokaicoffee.com"
+      ]
+    },
+    {
+      "name": "Subko",
+      "domains": [
+        "subko.coffee",
+        "www.subko.coffee"
+      ]
+    },
+    {
+      "name": "KC Roasters",
+      "domains": [
+        "kcroasters.com",
+        "www.kcroasters.com"
+      ]
+    },
+    {
+      "name": "Corridor Seven",
+      "domains": [
+        "corridorseven.coffee",
+        "www.corridorseven.coffee"
+      ]
+    },
+    {
+      "name": "Black Baza",
+      "domains": [
+        "blackbazacoffee.com",
+        "www.blackbazacoffee.com"
+      ]
+    },
+    {
+      "name": "Araku",
+      "domains": [
+        "arakucoffee.in",
+        "www.arakucoffee.in"
+      ]
+    },
+    {
+      "name": "Kapi Kottai",
+      "domains": [
+        "kapikottai.com",
+        "www.kapikottai.com",
+        "kapikottai.in"
+      ]
+    },
+    {
+      "name": "Dope Coffee Roasters",
+      "domains": [
+        "dopecoffee.in",
+        "www.dopecoffee.in"
+      ]
+    },
+    {
+      "name": "Savorworks",
+      "domains": [
+        "savorworksroasters.com",
+        "savorworks.com",
+        "www.savorworks.com"
+      ]
+    },
+    {
+      "name": "Bloom Coffee Roasters",
+      "domains": [
+        "bloomcoffeeroasters.com",
+        "bloomcoffeeroasters.in",
+        "www.bloomcoffeeroasters.com"
+      ]
+    },
+    {
+      "name": "Grey Soul",
+      "domains": [
+        "greysoul.coffee",
+        "greysoulcoffee.com",
+        "www.greysoul.coffee"
+      ]
+    },
+    {
+      "name": "Naivo",
+      "domains": [
+        "naivo.in",
+        "www.naivo.in"
+      ]
+    },
+    {
+      "name": "Rossette Coffee Lab",
+      "domains": [
+        "rossettecoffeelab.com",
+        "www.rossettecoffeelab.com"
+      ]
+    },
+    {
+      "name": "Third Wave Coffee",
+      "domains": [
+        "thirdwavecoffeeroasters.com",
+        "www.thirdwavecoffeeroasters.com",
+        "thirdwavecoffee.in"
+      ]
+    },
+    {
+      "name": "Devans",
+      "domains": [
+        "devans.in",
+        "www.devans.in"
+      ]
+    },
+    {
+      "name": "Ainmane",
+      "domains": [
+        "ainmane.com",
+        "www.ainmane.com"
+      ]
+    },
+    {
+      "name": "Seven Beans",
+      "domains": [
+        "sevenbeans.in",
+        "www.sevenbeans.in"
+      ]
+    },
+    {
+      "name": "Curious Life",
+      "domains": [
+        "curiouslife.coffee",
+        "www.curiouslife.coffee"
+      ]
+    },
+    {
+      "name": "Baarbara Berry",
+      "domains": [
+        "baarbaraberry.com",
+        "www.baarbaraberry.com"
+      ]
+    },
+    {
+      "name": "Bili Hu",
+      "domains": [
+        "bilihu.in",
+        "www.bilihu.in",
+        "bilihucoffee.com"
+      ]
+    },
+    {
+      "name": "Quick Brown Fox",
+      "domains": [
+        "quickbrownfox.coffee",
+        "www.quickbrownfox.coffee",
+        "qbfcoffee.com"
+      ]
+    },
+    {
+      "name": "Marc's Coffee",
+      "domains": [
+        "marcscoffee.in",
+        "www.marcscoffee.in"
+      ]
+    }
+  ],
+  "extractPerRun": 6,
+  "_adminHelp": "Fingerprint (SHA-256) of the private key used to refresh the catalogue by hand. Not the key itself, so it is safe in a public repository.",
+  "adminTokenSha256": "31e5190b097402bac49d63e58962dacc3cf7bb696419da905ccf84ef84d184db"
+}

@@ -2,20 +2,21 @@
    AI FUNCTION — runs on Netlify's servers, never in the browser.
    1. Checks the visitor is logged in (Supabase).
    2. Checks and counts their daily limit (config/ai.json → dailyLimits).
-   3. Builds the prompt and calls the AI provider with YOUR secret key.
+   3. identify / identify_bulk: reads a coffee bag photo.
+      find: searches the web for a coffee that isn't in the catalogue,
+            checks every link opens, and adds the coffee to the catalogue.
 
    Secret keys are set in Netlify → Site configuration → Environment variables:
      SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY,
      ANTHROPIC_API_KEY   (or GEMINI_API_KEY if provider is "gemini")
    ===================================================================== */
 import cfg from '../../config/ai.json';
+import { db, strip, packOf, UA } from '../lib/catalog.mjs';
 
 const env = k => process.env[k] || '';
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 /* ---------- prompts ---------- */
-const PICK_SCHEMA = `{"name":string,"roaster":string,"origin":string,"process":string|null,"roastLevel":"light"|"medium-light"|"medium"|"medium-dark"|"dark","notes":[up to 4 short tasting notes],"acidity":1-5,"body":1-5,"sweetness":1-5,"bitterness":1-5,"type":"Indian specialty"|"Imported","where":[from ${JSON.stringify(cfg.shops)}],"priceINR":approximate price as text like "₹550–650 / 250 g","why":one sentence tied to their taste}`;
-const availability = () => `Recommend only coffees that are easy to buy in ${cfg.country} right now: from ${cfg.country === 'India' ? 'Indian' : 'local'} specialty roasters (for example ${cfg.indianRoasters.join(', ')}) through their own websites, cafés or Amazon.in, or imported brands sold in ${cfg.country}. Use real roasters and products you are confident exist; if unsure of the exact current lot, name the roaster's long-running single origin or blend. At most ${cfg.maxImportedPicks} imported picks. ${cfg.extraGuidance || ''}`;
 const clip = (s, n) => String(s || '').slice(0, n);
 
 function buildPrompt(task, p) {
@@ -26,25 +27,6 @@ ${p.hint ? `The person says the coffee is: "${clip(p.hint, 160)}".` : ''}
 Identify the coffee and describe it. Where the packaging states something, use it. Where it does not, fill in from general knowledge of that coffee, roaster, origin and processing, and mark source accordingly. Never invent a roast date or weight that isn't visible.
 Return ONLY a JSON object:
 {"found":true|false,"name":string,"roaster":string|null,"origin":string|null,"region":string|null,"process":string|null,"variety":string|null,"roastLevel":"light"|"medium-light"|"medium"|"medium-dark"|"dark"|null,"roastDate":"YYYY-MM-DD"|null,"netWeightG":number|null,"tastingNotes":[up to 5 short notes],"aroma":short phrase,"acidity":1-5,"body":1-5,"sweetness":1-5,"bitterness":1-5,"packagingSays":one or two sentences summarising what the bag claims or null,"source":"packaging"|"knowledge"|"mixed","brewTip":one sentence of pour-over advice (ratio, grind, water temperature),"confidence":"high"|"medium"|"low"}`;
-  }
-  const taste = clip(p.taste, 6000);
-  const exclude = (p.exclude || []).slice(0, 60).map(x => clip(x, 80)).join('; ');
-  if (task === 'picks') {
-    return `You are a specialty coffee guide in ${cfg.country}, helping someone move from instant coffee toward specialty coffee and pour-over.
-${taste}
-${exclude ? `Already rated or saved (do not repeat): ${exclude}.` : ''}
-Suggest ${cfg.exploreCount} different coffees for them to explore: about seven that closely fit their palate, three that gently stretch it, and two that are quite different. Cover a range of roasts, processes and roasters. ${availability()}
-Return ONLY JSON: {"picks":[${PICK_SCHEMA}]}`;
-  }
-  if (task === 'similar') {
-    const c = p.coffee || {};
-    const liked = ['loved', 'liked'].includes(c.verdict);
-    return `You are a specialty coffee guide in ${cfg.country}.
-${taste}
-${exclude ? `Already rated or saved (do not repeat): ${exclude}.` : ''}
-They just rated "${clip(c.name, 120)}"${c.roaster ? ' by ' + clip(c.roaster, 80) : ''}: ${clip(c.verdict, 20)}. Reactions to the bag's claims: ${clip(c.reactions, 400) || 'none'}.
-Suggest ${cfg.similarCount} coffees ${liked ? 'with a similar profile they would also enjoy' : 'with a different profile that avoids what did not work'}. ${availability()}
-Return ONLY JSON: {"picks":[${PICK_SCHEMA}]}`;
   }
   return null;
 }
@@ -93,6 +75,61 @@ async function useQuota(userId, kind, limit) {
   return r.json();
 }
 
+
+/* ---------- live web search for a coffee that isn't in the catalogue ---------- */
+const FIND_PROMPT = q => `Find coffee products matching this search: "${q}".
+Use web search. Only return coffee beans or ground coffee in a bag that a person in ${cfg.country} can buy online today, from the roaster's own shop or an Indian retailer.
+Each url must be the exact product page you saw in the search results (not a home page, blog or search page). Never make up a URL.
+Return ONLY JSON: {"results":[{"name":string,"roaster":string,"url":string,"origin":string|null,"process":string|null,"roastLevel":"light"|"medium-light"|"medium"|"medium-dark"|"dark"|null,"notes":[string],"price":string|null}]} with at most 5 results, best match first.`;
+
+async function findCoffee(q) {
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': env('ANTHROPIC_API_KEY'), 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: cfg.model, max_tokens: 2000, messages: [{ role: 'user', content: FIND_PROMPT(clip(q, 120)) }],
+      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: cfg.findSearches || 2, user_location: { type: 'approximate', country: 'IN', timezone: 'Asia/Kolkata' } }] })
+  });
+  const out = await r.json();
+  if (!r.ok) throw new Error('Anthropic: ' + (out.error?.message || r.status));
+  const seen = new Set();
+  (out.content || []).forEach(b => { if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) b.content.forEach(x => x.url && seen.add(x.url.split('#')[0])); });
+  const text = (out.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  let list = []; try { list = parseJSON(text).results || []; } catch {}
+  const checked = await Promise.all(list.slice(0, 5).map(x => verify(x, seen)));
+  return checked.filter(Boolean);
+}
+/* Open each page: keep it only if it loads. Shopify shops give us the real photo and price. */
+async function verify(x, seen) {
+  let u; try { u = new URL(x.url); } catch { return null; }
+  if (!/^https?:$/.test(u.protocol)) return null;
+  const item = { name: clip(x.name, 120), roaster: clip(x.roaster, 80), url: u.href, origin: x.origin || null, process: x.process || null, roast_level: x.roastLevel || null, notes: (x.notes || []).slice(0, 5), price_text: x.price || null, image: null, inSearch: seen.has(u.href.split('#')[0]) };
+  try {
+    const m = u.pathname.match(/\/products\/([^/?#]+)/);
+    if (m) {
+      const r = await fetch(`${u.origin}/products/${m[1]}.json`, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(5000) });
+      if (r.ok) {
+        const p = (await r.json()).product;
+        Object.assign(item, { name: p.title, url: `${u.origin}/products/${p.handle}`, image: p.images?.[0]?.src || null, images: (p.images || []).slice(0, 4).map(i => i.src), raw: `Title: ${p.title}\nTags: ${p.tags}\nDescription: ${strip(p.body_html).slice(0, 1800)}`, ...packOf(p) });
+        item.verified = true; return item;
+      }
+    }
+    const r = await fetch(u.href, { headers: { 'user-agent': UA, accept: 'text/html' }, redirect: 'follow', signal: AbortSignal.timeout(5000) });
+    if (!r.ok) return null;
+    const html = (await r.text()).slice(0, 300000);
+    const og = k => (html.match(new RegExp(`<meta[^>]+property=["']og:${k}["'][^>]+content=["']([^"']+)`, 'i')) || [])[1];
+    item.image = og('image') || null; item.verified = true; return item;
+  } catch { return item.inSearch ? item : null; }
+}
+/* Save a found coffee into the shared catalogue so everyone can find it next time. */
+async function addToCatalog(it) {
+  const id = new URL(it.url).host.replace(/^www\./, '') + new URL(it.url).pathname.replace(/\/$/, '');
+  const row = { id, roaster: it.roaster || new URL(it.url).host, name: it.name, url: it.url, image: it.image, images: it.images || (it.image ? [it.image] : []),
+    price_inr: it.price_inr || null, pack_g: it.pack_g || null, price_250: it.price_250 || null, available: it.available !== false,
+    origin: it.origin, process: it.process, roast_level: it.roast_level, notes: it.notes, source: 'web', raw: it.raw || null, extracted: !it.raw, is_coffee: true, updated_at: new Date().toISOString() };
+  await db('catalog?on_conflict=id', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates' }, body: JSON.stringify([row]) });
+  return id;
+}
+
 /* ---------- handler ---------- */
 export default async (req) => {
   if (req.method !== 'POST') return json(405, { code: 'method', message: 'Use POST' });
@@ -107,7 +144,12 @@ export default async (req) => {
 
   try {
     const ok = await useQuota(user.id, task, limit);
-    if (!ok) return json(429, { code: 'limit_reached', message: `You’ve used today’s ${task.startsWith('identify') ? 'scans' : 'suggestions'}. They reset at midnight (UTC).` });
+    if (!ok) return json(429, { code: 'limit_reached', message: `You’ve used today’s ${task.startsWith('identify') ? 'scans' : task === 'find' ? 'web searches' : 'suggestions'}. They reset at midnight (UTC).` });
+    if (task === 'find') {
+      const results = await findCoffee(String(payload.q || ''));
+      for (const it of results) { try { it.catalogId = await addToCatalog(it); } catch (e) { console.warn(e.message); } delete it.raw; }
+      return json(200, { result: results });
+    }
     const prompt = buildPrompt(task, payload);
     const text = cfg.provider === 'gemini' ? await callGemini(prompt, payload.image) : await callAnthropic(prompt, payload.image);
     const data = parseJSON(text);

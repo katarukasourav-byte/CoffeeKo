@@ -4,10 +4,13 @@
    the placeholder values, the site runs in DEMO MODE: data stays in this
    browser and the AI features are switched off.
    ===================================================================== */
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 
 const S = window.SETTINGS || {};
-const configured = !!(S.supabaseUrl && S.supabaseAnonKey && !/YOUR-/.test(S.supabaseUrl + S.supabaseAnonKey));
+const hasKeys = !!(S.supabaseUrl && S.supabaseAnonKey && !/YOUR-/.test(S.supabaseUrl + S.supabaseAnonKey));
+/* Preview copies (not coffeeko.in) can be opened with ?demo=1 to try the dashboard without an account. */
+const forceDemo = /[?&]demo=1/.test(location.search) && !/(^|\.)coffeeko\.in$/.test(location.hostname);
+const configured = hasKeys && !forceDemo;
 const sb = configured ? createClient(S.supabaseUrl, S.supabaseAnonKey) : null;
 const LS = 'palate-pour-demo';
 
@@ -71,6 +74,22 @@ const API = {
   async delBag(id) {
     if (!sb) return lsPut(d => { delete d.shelf[id]; });
     const { error } = await sb.from('shelf').delete().eq('id', id).eq('user_id', user.id); fail(error);
+  },
+
+  /* ---------- coffee catalogue (public, refreshed from roasters' shops) ---------- */
+  async catalog() {
+    if (!hasKeys) return [];
+    const K = 'ck-catalog-v1';
+    try { const c = JSON.parse(sessionStorage.getItem(K) || 'null'); if (c && Date.now() - c.at < 30 * 60e3) return c.rows; } catch (e) {}
+    const cols = 'id,roaster,name,url,image,images,price_inr,pack_g,price_250,available,origin,region,estate,altitude,variety,process,roast_level,notes,acidity,body,sweetness,bitterness,grade,blend,summary,source,updated_at';
+    const rows = [];
+    for (let from = 0; from < 3000; from += 1000) {
+      const r = await fetch(`${S.supabaseUrl}/rest/v1/catalog?select=${cols}&is_coffee=eq.true&extracted=eq.true&order=roaster,name`, { headers: { apikey: S.supabaseAnonKey, Authorization: 'Bearer ' + S.supabaseAnonKey, Range: `${from}-${from + 999}` } });
+      if (!r.ok) throw new Error('Catalogue ' + r.status);
+      const part = await r.json(); rows.push(...part); if (part.length < 1000) break;
+    }
+    try { sessionStorage.setItem(K, JSON.stringify({ at: Date.now(), rows })); } catch (e) {}
+    return rows;
   },
 
   /* ---------- AI (runs on Netlify, see netlify/functions/ai.mjs) ---------- */

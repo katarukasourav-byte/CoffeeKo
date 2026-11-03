@@ -11,8 +11,10 @@
    ===================================================================== */
 window.SITE = {
 
-  brand: 'Palate & Pour',
-  nav: { story: 'Bean to cup', app: 'My coffee' },
+  brand: 'CoffeeKo',
+  /* What Google and browser tabs show. Not shown on the page itself. */
+  pageTitle: 'CoffeeKo · Build your coffee personality',
+  nav: { app: 'My coffee' },
 
   /* ---------- Opening screen ---------- */
   hero: {
@@ -84,7 +86,8 @@ window.SITE = {
 
   /* ---------- Section headings ---------- */
   sections: {
-    explore: { title: 'Explore', sub: 'Coffees you can buy in India, ranked by how well they match you.', matchmaker: 'Open Match maker' },
+    profile: { title: 'Coffee Personality', tab: 'Personality' },
+    explore: { title: 'Explore', sub: 'Real coffees from Indian roasters, ranked by how well they match you. Every link opens the roaster’s own product page.', matchmaker: 'Open Match maker', search: 'Search any coffee, roaster or origin' },
     journal: { title: 'Journal', sub: 'Every coffee you’ve tried, and the ones waiting to be tried.' },
     shelf:   { title: 'Shelf',   sub: 'What’s at home, how fresh it is, and what to brew first.' }
   },
@@ -92,7 +95,7 @@ window.SITE = {
   /* ---------- Login screen ---------- */
   login: {
     title: 'Your coffee, remembered.',
-    sub: 'Create a free account to get your Taste ID, match coffees to your palate, and keep track of what’s on your shelf.'
+    sub: 'Create a free account to build your Coffee Personality, match coffees to your palate, and keep track of what’s on your shelf.'
   },
 
   /* ---------- First-time setup: add past coffees ----------
@@ -102,13 +105,13 @@ window.SITE = {
     title: 'Add coffees you’ve had before',
     sub: 'Pick photos of the bags you’ve bought recently, several at once. We’ll identify each one and put them in a “To rate” list. Rate them now or whenever you like.',
     skip: 'Skip for now',
-    skipToast: 'You can add past coffees any time from your Taste ID',
+    skipToast: 'You can add past coffees any time from your Coffee Personality',
     maxPhotos: 20
   },
 
   /* ---------- Reminder to rate coffees waiting in “To rate” ---------- */
   reminders: {
-    text: 'Rating the coffees you’ve had sharpens your Taste ID and your matches.',
+    text: 'Every rating updates your Coffee Personality and your matches.',
     later: 'Remind me later',
     snoozeDays: 3
   },
@@ -161,14 +164,34 @@ window.SITE = {
     earthy:    { label: 'Earthy & woody',  words: ['earthy','woody','wood','tobacco','cedar','smoky','smoke','leather','malt','musty','herbal'] }
   },
 
-  /* ---------- Taste types (the big name on the Taste ID) ---------- */
-  archetypes: {
-    open:      { name: 'The Open Palate',          text: 'No strong leanings yet. Rate a few coffees and your type will sharpen.' },
-    floral:    { name: 'The Floral Purist',        text: 'Delicate, tea-like cups with jasmine and citrus. Light roasts and washed coffees suit you.' },
-    bright:    { name: 'The Bright Explorer',      text: 'Juicy, fruit-forward cups. Light roasts, natural process and high-grown lots.' },
-    bold:      { name: 'The Bold Traditionalist',  text: 'Full body, spice and depth. Monsooned coffees and darker roasts feel like home.' },
-    sweet:     { name: 'The Sweet Tooth',          text: 'Caramel, jaggery and honey sweetness. Honey-process and medium roasts are your sweet spot.' },
-    chocolate: { name: 'The Chocolate Classicist', text: 'Cocoa, nuts and caramel with gentle acidity. Medium roasts from Chikmagalur and Coorg estates suit you.' }
+  /* ---------- Coffee Personalities ----------
+     The standard set. Everyone gets the one their ratings sit closest to,
+     and it updates after every rating. 'look' is what this person tends to
+     enjoy. 'shape' is the typical cup for the type (1–5 scales; roast 1 =
+     light, 5 = dark; flavours = which tasting-note families stand out).
+     You can rename or reword freely; change 'shape' only with care. */
+  personalities: {
+    newbie:    { name: 'The New Palate', text: 'Your personality appears after the quiz or your first rating, and sharpens with every coffee you rate.' },
+    floral:    { name: 'The Floral Purist', text: 'Delicate, tea-like cups that smell of jasmine and bergamot.',
+                 look: 'Light roasts, washed process, high-grown coffees',
+                 shape: { roast: 1.6, acidity: 4.2, body: 2, sweetness: 3, bitterness: 1.2, flavours: { floral: 3, citrus: 2, fruity: 1 } } },
+    fruity:    { name: 'The Fruit Hunter', text: 'Juicy, jammy cups that taste of berries, mango and stone fruit.',
+                 look: 'Natural and anaerobic process, light to medium roasts',
+                 shape: { roast: 2.3, acidity: 3.8, body: 3, sweetness: 4, bitterness: 1.5, flavours: { fruity: 3, citrus: 1, caramel: 1 } } },
+    sweet:     { name: 'The Sweet Tooth', text: 'Round, sweet cups of caramel, jaggery and honey with just a little brightness.',
+                 look: 'Honey process, medium roasts',
+                 shape: { roast: 3, acidity: 2.8, body: 3.4, sweetness: 4.4, bitterness: 2, flavours: { caramel: 3, chocolate: 1, nutty: 1, fruity: 0.5 } } },
+    balanced:  { name: 'The All-Rounder', text: 'Nothing too loud. You enjoy clean, balanced cups where no single flavour takes over.',
+                 look: 'Medium roasts, washed coffees, classic estates',
+                 shape: { roast: 3, acidity: 3, body: 3, sweetness: 3.2, bitterness: 2.2, flavours: { chocolate: 1, nutty: 1, caramel: 1, fruity: 1, citrus: 1 } } },
+    chocolate: { name: 'The Chocolate Classicist', text: 'Cocoa, nuts and caramel with gentle acidity and a smooth, full body.',
+                 look: 'Medium to medium-dark roasts from Chikmagalur and Coorg estates',
+                 shape: { roast: 3.4, acidity: 2.2, body: 3.9, sweetness: 3.4, bitterness: 2.5, flavours: { chocolate: 3, nutty: 2, caramel: 1 } } },
+    bold:      { name: 'The Bold Traditionalist', text: 'Heavy, low-acid cups with dark chocolate, spice and an earthy depth.',
+                 look: 'Monsooned Malabar, medium-dark and dark roasts, South Indian filter',
+                 shape: { roast: 4.4, acidity: 1.6, body: 4.5, sweetness: 2.6, bitterness: 3.6, flavours: { earthy: 2.5, spicy: 2, chocolate: 1.5 } } },
+    explorer:  { name: 'The Explorer', text: 'You love coffees that are nothing alike, from bright and floral to dark and earthy. Variety is your thing.',
+                 look: 'A different origin and process each time' }
   },
 
   /* ---------- Rating buttons ---------- */
@@ -183,5 +206,5 @@ window.SITE = {
   openedBagDays: 30,
   defaultDoseGrams: 15,
 
-  footer: 'Freshness windows are rules of thumb for whole-bean pour-over. Coffee suggestions are AI-generated; availability and prices in India change, so check before you buy.'
+  footer: 'Coffees, prices and photos come from each roaster’s own shop and are refreshed every day. Freshness windows are rules of thumb for whole-bean pour-over.'
 };
