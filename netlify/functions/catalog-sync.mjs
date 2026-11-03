@@ -17,7 +17,7 @@ export default async (req) => {
   try {
     if (b.action === 'sync') return json(200, await syncRoaster(b.roaster));
     if (b.action === 'extract') return json(200, await extractBatch(b.n));
-    if (b.action === 'find') return json(200, await findCoffee(String(b.q || '')));
+    if (b.action === 'find') return json(200, await findCoffee(String(b.q || ''), b.region, b.tz));
     return json(200, await status());
   } catch (e) { return json(500, { error: e.message }); }
 };

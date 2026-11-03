@@ -6,17 +6,28 @@ const env = k => process.env[k] || '';
 const clip = (s, n) => String(s || '').slice(0, n);
 function parseJSON(text) { const m = String(text).match(/\{[\s\S]*\}/); if (!m) throw new Error('No JSON in reply'); return JSON.parse(m[0]); }
 /* ---------- live web search for a coffee that isn't in the catalogue ---------- */
-const FIND_PROMPT = q => `Find coffee products matching this search: "${q}".
-Use web search. Only return coffee beans or ground coffee in a bag that a person in ${cfg.country} can buy online today, from the roaster's own shop or an Indian retailer.
+const FIND_PROMPT = (q, where) => `Find coffee products matching this search: "${q}".
+Use web search. Only return coffee beans or ground coffee in a bag that can be bought online today from the roaster's own shop or a coffee retailer${where ? `, preferring shops that sell to ${where}` : ''}.
 Each url must be the exact product page you saw in the search results (not a home page, blog or search page). Never make up a URL.
 Return ONLY JSON: {"results":[{"name":string,"roaster":string,"url":string,"origin":string|null,"process":string|null,"roastLevel":"light"|"medium-light"|"medium"|"medium-dark"|"dark"|null,"notes":[string],"price":string|null}]} with at most 5 results, best match first.`;
 
-export async function findCoffee(q) {
+/* Where the visitor is: two-letter region from their browser, or their time zone. Nothing else is used. */
+function placeOf(region, tz) {
+  const r = String(region || '').toUpperCase().slice(0, 2);
+  const z = String(tz || '').slice(0, 40);
+  const country = /^[A-Z]{2}$/.test(r) ? r : (/^Asia\/(Kolkata|Calcutta)$/.test(z) ? 'IN' : null);
+  return { country, timezone: /^[A-Za-z_]+\/[A-Za-z_\-]+$/.test(z) ? z : null };
+}
+let regionNames; try { regionNames = new Intl.DisplayNames(['en'], { type: 'region' }); } catch {}
+export async function findCoffee(q, region, tz) {
+  const pl = placeOf(region, tz);
+  const where = pl.country ? (regionNames?.of(pl.country) || pl.country) : null;
+  const loc = pl.country ? { type: 'approximate', country: pl.country, ...(pl.timezone ? { timezone: pl.timezone } : {}) } : null;
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': env('ANTHROPIC_API_KEY'), 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: cfg.model, max_tokens: 3000, ...(cfg.thinking === false ? { thinking: { type: 'disabled' } } : {}), messages: [{ role: 'user', content: FIND_PROMPT(clip(q, 120)) }],
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: cfg.findSearches || 2, user_location: { type: 'approximate', country: 'IN', timezone: 'Asia/Kolkata' } }] })
+    body: JSON.stringify({ model: cfg.model, max_tokens: 3000, ...(cfg.thinking === false ? { thinking: { type: 'disabled' } } : {}), messages: [{ role: 'user', content: FIND_PROMPT(clip(q, 120), where) }],
+      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: cfg.findSearches || 2, ...(loc ? { user_location: loc } : {}) }] })
   });
   const out = await r.json();
   if (!r.ok) throw new Error('Anthropic: ' + (out.error?.message || r.status));

@@ -89,7 +89,7 @@ window.SITE = {
   /* ---------- Section headings ---------- */
   sections: {
     profile: { title: 'Coffee Personality', tab: 'Personality' },
-    explore: { title: 'Explore', sub: 'Real coffees from Indian roasters, ranked by how well they match you. Every link opens the roaster’s own product page.', matchmaker: 'Open Match maker', search: 'Search any coffee, roaster or origin' },
+    explore: { title: 'Explore', sub: 'Real coffees from specialty roasters, ranked by how well they match you. Every link opens the roaster’s own product page.', matchmaker: 'Open Match maker', search: 'Search any coffee, roaster or origin' },
     journal: { title: 'Journal', sub: 'Every coffee you’ve tried, and the ones waiting to be tried.' },
     shelf:   { title: 'Shelf',   sub: 'What’s at home, how fresh it is, and what to brew first.' }
   },
@@ -97,7 +97,7 @@ window.SITE = {
   /* ---------- Login screen ---------- */
   login: {
     title: 'Your coffee, remembered.',
-    sub: 'Take a one-minute quiz, rate the coffees you drink, and get matched to real coffees from Indian roasters. Free.',
+    sub: 'Take a one-minute quiz, rate the coffees you drink, and get matched to real coffees from specialty roasters. Free.',
     signupTitle: 'Build your coffee personality',
     signupButton: 'Create my account'
   },

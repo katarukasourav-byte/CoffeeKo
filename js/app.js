@@ -138,7 +138,9 @@ async function identify(blob,hint,kind){
   if(blob){image=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(String(fr.result).split(',')[1]);fr.readAsDataURL(blob);});}
   return API.ai(kind||'identify',{image,hint});
 }
-const amazon=p=>`https://www.amazon.in/s?k=${encodeURIComponent([p.roaster,p.name,'coffee'].filter(Boolean).join(' '))}`;
+/* The visitor's own Amazon store, from their browser language/region */
+const AMZ=(()=>{const l=(navigator.language||'').toLowerCase(),r=l.split('-')[1]||'';return{in:'amazon.in',gb:'amazon.co.uk',uk:'amazon.co.uk',au:'amazon.com.au',ca:'amazon.ca',de:'amazon.de',fr:'amazon.fr',it:'amazon.it',es:'amazon.es',nl:'amazon.nl',jp:'amazon.co.jp',ae:'amazon.ae',sg:'amazon.sg',sa:'amazon.sa'}[r]||(Intl.DateTimeFormat().resolvedOptions().timeZone==='Asia/Calcutta'||Intl.DateTimeFormat().resolvedOptions().timeZone==='Asia/Kolkata'?'amazon.in':'amazon.com');})();
+const amazon=p=>`https://www.${AMZ}/s?k=${encodeURIComponent([p.roaster,p.name,'coffee'].filter(Boolean).join(' '))}`;
 const imgW=(u,w)=>u&&/cdn\.shopify\.com|\/cdn\/shop\//.test(u)?u+(u.includes('?')?'&':'?')+'width='+w:u;
 const priceText=p=>p.price?`₹${p.price.toLocaleString('en-IN')}${p.packG?' · '+p.packG+' g':''}`:(p.priceText||p.priceINR||'');
 const originLine=p=>p.blend&&!p.origin?'Blend':[p.region,p.origin].filter(Boolean).join(', ')||'Origin not stated';
@@ -234,7 +236,7 @@ function openTypes(){
 }
 /* ---------- explore ---------- */
 let xf='all',xAll=false;
-const XF=[['all','All'],['top','Top matches'],['light','Light roast'],['medium','Medium'],['dark','Dark'],['fruity','Fruity'],['chocolate','Chocolatey'],['natural','Natural'],['washed','Washed'],['india','Grown in India'],['world','Other origins'],['budget','Under ₹600']];
+const XF=[['all','All'],['top','Top matches'],['light','Light roast'],['medium','Medium'],['dark','Dark'],['fruity','Fruity'],['chocolate','Chocolatey'],['natural','Natural'],['washed','Washed'],['single','Single origin'],['blend','Blends'],['budget','Under ₹600']];
 const keyOf=p=>((p.roaster||'')+'|'+(p.name||'')).toLowerCase();
 const inJournal=p=>state.journal.find(e=>(p.id&&e.catalogId===p.id)||keyOf(e)===keyOf(p));
 function diversify(L){const out=[],rest=L.slice();while(rest.length){let i=rest.findIndex(x=>!(out.length>=2&&out[out.length-1].p.roaster===x.p.roaster&&out[out.length-2].p.roaster===x.p.roaster));if(i<0)i=0;out.push(rest.splice(i,1)[0]);}return out;}
@@ -247,7 +249,7 @@ function exploreList(){
     if(f==='top')return m&&m.score>=75;if(f==='light')return r==='light';if(f==='medium')return r==='medium';if(f==='dark')return r==='medium-dark'||r==='dark';
     if(f==='fruity')return fm.has('fruity')||fm.has('citrus');if(f==='chocolate')return fm.has('chocolate')||fm.has('nutty');
     if(f==='natural')return /natural|anaerobic|carbonic/.test(pr);if(f==='washed')return /washed/.test(pr);
-    if(f==='india')return o.includes('india');if(f==='world')return o&&!o.includes('india');if(f==='budget')return (p.price250||p.price)&&(p.price250||p.price)<600;return true;});
+    if(f==='single')return p.blend===false;if(f==='blend')return p.blend===true;if(f==='budget')return (p.price250||p.price)&&(p.price250||p.price)<600;return true;});
   return diversify(L).map(x=>Object.assign(x,{saved:!!inJournal(x.p)}));
 }
 function xcard({p,m,saved}){
@@ -265,7 +267,7 @@ function renderExplore(){
   const el=$('#explore-body');if(!el)return;
   XL=exploreList();const LIM=24;
   const st=state.catState;
-  const body=st==='loading'?`<div class="rail-empty"><p>Loading coffees from Indian roasters…</p></div>`
+  const body=st==='loading'?`<div class="rail-empty"><p>Loading coffees…</p></div>`
     :st==='error'?`<div class="rail-empty"><p>Couldn’t load the coffee list.</p><button class="btn ghost small" data-act="reload-cat">Try again</button></div>`
     :!state.cat.length?`<div class="rail-empty"><p>The coffee list is being built from roasters’ shops. Check back in a little while.</p></div>`
     :!XL.length?`<p class="muted">Nothing matches this filter.</p>`
@@ -296,7 +298,7 @@ function openCoffee(p){
     <div class="cd-head"><span class="kicker">${esc(p.roaster)}</span><h3>${esc(p.name)}</h3>
       ${p.summary?`<p class="cd-sum">${esc(p.summary)}</p>`:''}
       <div class="cd-price"><b>${esc(priceText(p))}</b>${p.price250&&p.packG&&p.packG!==250?`<span class="muted">≈ ₹${p.price250} per 250 g</span>`:''}${p.available===false?'<span class="vtag v-dislike">Out of stock</span>':''}</div>
-      <div class="actions">${p.url?`<a class="btn accent" href="${esc(p.url)}" target="_blank" rel="noopener">Buy from ${esc(p.roaster)} ↗</a>`:''}<a class="btn ghost small" href="${amazon(p)}" target="_blank" rel="noopener">Search on Amazon.in</a></div>
+      <div class="actions">${p.url?`<a class="btn accent" href="${esc(p.url)}" target="_blank" rel="noopener">Buy from ${esc(p.roaster)} ↗</a>`:''}<a class="btn ghost small" href="${amazon(p)}" target="_blank" rel="noopener">Search on Amazon</a></div>
     </div>
    </div>
    ${m?`<div class="matchbox">${matchBadge(m)}<ul>${m.pros.map(x=>`<li>${esc(x)}</li>`).join('')}${m.cons.map(x=>`<li class="con">${esc(x)}</li>`).join('')}${!m.pros.length&&!m.cons.length?'<li>Not enough detail to compare yet</li>':''}</ul></div>`:''}
@@ -337,7 +339,7 @@ async function webSearch(){
   openSheet(`${head('Search the web')}<h3>“${esc(v)}”</h3><p class="lead">Looking on roasters’ websites and checking every link opens…</p><div class="wres"><i class="spin"></i></div>`);
   if(!sample){$('.wres').innerHTML='<p class="muted">Web search works once you’re signed in on the live site.</p>';return;}
   try{
-    const R=await API.ai('find',{q:v});
+    const R=await API.ai('find',{q:v,region:(navigator.language||'').split('-')[1]||'',tz:Intl.DateTimeFormat().resolvedOptions().timeZone||''});
     const el=$('.wres');if(!el)return;
     el.innerHTML=R.length?R.map((it,i)=>`<div class="wr"><span class="xr-img">${it.image?`<img src="${esc(imgW(it.image,160))}" alt="">`:beanIcon()}</span><div class="wr-t"><b>${esc(it.name)}</b><span class="muted">${esc(it.roaster||new URL(it.url).host)}${it.price_inr?' · ₹'+it.price_inr+(it.pack_g?' / '+it.pack_g+' g':''):it.price_text?' · '+esc(it.price_text):''}</span>
       <span class="wr-a"><a class="btn ghost small" href="${esc(it.url)}" target="_blank" rel="noopener">Open page ↗</a><button class="btn accent small" data-w="${i}">Save to try</button></span></div></div>`).join(''):`<p class="muted">Nothing for sale turned up for “${esc(v)}”. Try the roaster’s name with the coffee’s name.</p>`;
@@ -618,7 +620,7 @@ function renderResult(editOpen){
 function entryExtras(e){
   const onShelf=state.shelf.some(b=>b.entryId===e.id);
   return`${e.status==='rated'?`<div class="sec"><h4>Your rating</h4><p class="muted"><span class="vtag v-${e.verdict}" style="margin:0 8px 0 0">${VL[e.verdict]}</span>${e.myNotes?esc(e.myNotes):''}</p></div>`:''}
-   <div class="sec"><h4>Where to buy</h4><div class="where">${e.buy?.priceText||e.buy?.priceINR?`<span class="price">${esc(e.buy.priceText||e.buy.priceINR)}</span>`:''}${e.url?`<a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.roaster||'Roaster')}’s shop ↗</a>`:''}${e.catalogId&&catById.get(e.catalogId)?`<a href="#" data-act="coffee" data-id="${esc(e.catalogId)}">Full details</a>`:''}<a href="${amazon(e)}" target="_blank" rel="noopener">Search Amazon.in</a></div></div>
+   <div class="sec"><h4>Where to buy</h4><div class="where">${e.buy?.priceText||e.buy?.priceINR?`<span class="price">${esc(e.buy.priceText||e.buy.priceINR)}</span>`:''}${e.url?`<a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.roaster||'Roaster')}’s shop ↗</a>`:''}${e.catalogId&&catById.get(e.catalogId)?`<a href="#" data-act="coffee" data-id="${esc(e.catalogId)}">Full details</a>`:''}<a href="${amazon(e)}" target="_blank" rel="noopener">Search on Amazon</a></div></div>
    ${(()=>{const S=e.status==='rated'?similarTo(e,3):[];return S.length?`<div class="sec"><h4>${['loved','liked'].includes(e.verdict)?'If you liked this, try':'Try something different'}</h4><div class="minis">${S.map(miniCard).join('')}</div></div>`:'';})()}
    <div class="actions sec">${!onShelf?'<button class="btn ghost small" id="eShelf">Add to shelf</button>':''}<button class="btn quiet small danger" id="eDel">Remove from journal</button></div>`;
 }

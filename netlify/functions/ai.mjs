@@ -97,7 +97,7 @@ export default async (req) => {
     const ok = await useQuota(user.id, task, limit);
     if (!ok) return json(429, { code: 'limit_reached', message: `You’ve used today’s ${task.startsWith('identify') ? 'scans' : task === 'find' ? 'web searches' : 'suggestions'}. They reset at midnight (UTC).` });
     if (task === 'find') {
-      const results = await findCoffee(String(payload.q || ''));
+      const results = await findCoffee(String(payload.q || ''), payload.region, payload.tz);
       for (const it of results) { try { it.catalogId = await addToCatalog(it); } catch (e) { console.warn(e.message); } delete it.raw; }
       return json(200, { result: results });
     }
