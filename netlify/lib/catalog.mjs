@@ -97,13 +97,14 @@ export async function syncRoaster(name) {
 const PROMPT = items => `You are cataloguing specialty coffee sold online in India. For each product below, read ONLY the text given.
 Rules:
 - isCoffee: true only for roasted coffee sold as beans or ground coffee in a bag (single origins and blends). false for equipment, gift boxes, subscriptions, capsules, drip bags, cold brew, tea, merchandise, sample sets of many coffees.
-- origin (country), region, estate (farm/estate/cooperative), altitude, variety (e.g. SL795, Catuai), process (Washed, Natural, Honey, Anaerobic, Monsooned, Carbonic maceration… as written), grade (e.g. AA, Plantation A, PB, Specialty 84+), roastLevel: fill ONLY if the text states or clearly implies it; otherwise null. Never guess an estate, altitude or variety.
+- origin (country), region, estate (farm/estate/cooperative), altitude, variety (e.g. SL795, Catuai), grade (e.g. AA, Plantation A, PB, Specialty 84+), roastLevel: fill ONLY if the text states or clearly implies it; otherwise null. Never guess an estate, altitude or variety. These roasters are Indian: when the coffee comes from a named Indian estate or region (Chikmagalur, Coorg, Araku, Baba Budangiri, Nilgiris, Wayanad, BR Hills, Malabar…) and no other country is named, origin is "India".
+- process: the short name only, at most 3 words (e.g. "Washed", "Natural", "Honey", "Anaerobic natural", "Carbonic maceration", "Monsooned", "Yeast fermented", "Co-ferment"). processDetail: the longer description if the text gives one (fermentation hours, drying), else null.
 - notes: up to 5 tasting notes as written.
 - acidity, body, sweetness, bitterness: 1–5. Use any stated scores (tags like "acidity-medium" = 3, "high" = 4, "low" = 2); otherwise estimate from the notes and roast.
 - blend: true if it is a blend of several coffees.
 - summary: one plain sentence (max 25 words) describing how it tastes. No marketing words.
 Output format: one JSON object per product, each on its own single line, nothing else (no array, no code fences, no commentary). Use double quotes and escape any double quote inside text. Each line:
-{"id":string,"isCoffee":boolean,"origin":string|null,"region":string|null,"estate":string|null,"altitude":string|null,"variety":string|null,"process":string|null,"grade":string|null,"roastLevel":"light"|"medium-light"|"medium"|"medium-dark"|"dark"|null,"notes":[string],"acidity":1-5,"body":1-5,"sweetness":1-5,"bitterness":1-5,"blend":boolean,"summary":string}
+{"id":string,"isCoffee":boolean,"origin":string|null,"region":string|null,"estate":string|null,"altitude":string|null,"variety":string|null,"process":string|null,"processDetail":string|null,"grade":string|null,"roastLevel":"light"|"medium-light"|"medium"|"medium-dark"|"dark"|null,"notes":[string],"acidity":1-5,"body":1-5,"sweetness":1-5,"bitterness":1-5,"blend":boolean,"summary":string}
 
 ${items.map(i => `### id: ${i.id}\n${i.raw}`).join('\n\n')}`;
 
@@ -130,7 +131,7 @@ export async function extractBatch(n) {
     if (!todo.some(t => t.id === it.id)) continue;
     const patch = it.isCoffee === false ? { is_coffee: false, extracted: true } : {
       extracted: true, is_coffee: true, origin: it.origin || null, region: it.region || null, estate: it.estate || null, altitude: it.altitude || null,
-      variety: it.variety || null, process: it.process || null, grade: it.grade || null, roast_level: ROAST.includes(it.roastLevel) ? it.roastLevel : null,
+      variety: it.variety || null, process: it.process ? String(it.process).slice(0, 40) : null, process_detail: it.processDetail ? String(it.processDetail).slice(0, 220) : null, grade: it.grade || null, roast_level: ROAST.includes(it.roastLevel) ? it.roastLevel : null,
       notes: (it.notes || []).slice(0, 5), acidity: cl(it.acidity), body: cl(it.body), sweetness: cl(it.sweetness), bitterness: cl(it.bitterness),
       blend: !!it.blend, summary: it.summary ? String(it.summary).slice(0, 220) : null };
     await db(`catalog?id=eq.${encodeURIComponent(it.id)}`, { method: 'PATCH', body: JSON.stringify(patch) });

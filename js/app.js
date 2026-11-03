@@ -60,7 +60,7 @@ async function loadCatalog(force){
   catch(e){console.warn(e);state.catState='error';}
   renderExplore();renderJournal();
 }
-const fromCat=r=>({id:r.id,catalogId:r.id,name:r.name,roaster:r.roaster,origin:r.origin||'',region:r.region||'',estate:r.estate||'',altitude:r.altitude||'',variety:r.variety||'',process:r.process||'',grade:r.grade||'',blend:r.blend,roastLevel:r.roast_level||'',notes:r.notes||[],tastingNotes:r.notes||[],acidity:r.acidity,body:r.body,sweetness:r.sweetness,bitterness:r.bitterness,summary:r.summary||'',url:r.url,image:r.image,images:(r.images&&r.images.length?r.images:[r.image]).filter(Boolean),price:r.price_inr,packG:r.pack_g,price250:r.price_250,available:r.available!==false,source:r.source,updatedAt:r.updated_at});
+const fromCat=r=>({id:r.id,catalogId:r.id,name:r.name,roaster:r.roaster,origin:r.origin||'',region:r.region||'',estate:r.estate||'',altitude:r.altitude||'',variety:r.variety||'',process:r.process||'',processDetail:r.process_detail||'',grade:r.grade||'',blend:r.blend,roastLevel:r.roast_level||'',notes:r.notes||[],tastingNotes:r.notes||[],acidity:r.acidity,body:r.body,sweetness:r.sweetness,bitterness:r.bitterness,summary:r.summary||'',url:r.url,image:r.image,images:(r.images&&r.images.length?r.images:[r.image]).filter(Boolean),price:r.price_inr,packG:r.pack_g,price250:r.price_250,available:r.available!==false,source:r.source,updatedAt:r.updated_at});
 
 /* =================== taste model =================== */
 const FAM=Object.fromEntries(Object.entries(SITE.flavours).map(([k,v])=>[k,{l:v.label,w:v.words}]));
@@ -300,7 +300,7 @@ function openCoffee(p){
    ${m?`<div class="matchbox">${matchBadge(m)}<ul>${m.pros.map(x=>`<li>${esc(x)}</li>`).join('')}${m.cons.map(x=>`<li class="con">${esc(x)}</li>`).join('')}${!m.pros.length&&!m.cons.length?'<li>Not enough detail to compare yet</li>':''}</ul></div>`:''}
    <div class="specs">
     <section><h4>Origin</h4>${row('Country',p.origin)}${row('Region',p.region)}${row('Estate / farm',p.estate)}${row('Altitude',p.altitude)}</section>
-    <section><h4>The bean</h4>${row('Variety',p.variety)}${row('Grade',p.grade)}${row('Process',p.process)}${row('Type',p.blend==null?'':p.blend?'Blend':'Single origin')}</section>
+    <section><h4>The bean</h4>${row('Variety',p.variety)}${row('Grade',p.grade)}${row('Process',p.process)}${p.processDetail?`<p class="spec-note">${esc(p.processDetail)}</p>`:''}${row('Type',p.blend==null?'':p.blend?'Blend':'Single origin')}</section>
     <section class="wide"><h4>Roast and taste</h4>${row('Roast level',p.roastLevel?cap(p.roastLevel):'')}${row('Tasting notes',(p.notes||[]).join(', '))}${bars(p)}</section>
    </div>
    <p class="muted fine">From ${esc(p.roaster)}’s ${p.source==='web'?'website':'shop'}${p.updatedAt?', checked '+fmtD(new Date(p.updatedAt)):''}. “Not stated” means the roaster doesn’t say. Taste scores are estimated from the roaster’s description.</p>

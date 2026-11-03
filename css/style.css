@@ -575,3 +575,4 @@ body:has(.sheet-wrap.on) .fabs{opacity:0;pointer-events:none}
 footer{padding-bottom:110px}
 #signOut{display:inline-flex;align-items:center;gap:6px}
 @media (max-width:520px){#signOut span{display:none}#signOut{padding:8px}}
+.spec-note{margin:2px 0 6px;font-size:13px;color:var(--ink-soft);line-height:1.5}
