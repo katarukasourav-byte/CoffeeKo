@@ -108,8 +108,8 @@ Output format: one JSON object per product, each on its own single line, nothing
 
 ${items.map(i => `### id: ${i.id}\n${i.raw}`).join('\n\n')}`;
 
-export async function extractBatch(n) {
-  const todo = await db(`catalog?select=id,raw,tries&extracted=eq.false&is_coffee=eq.true&available=eq.true&raw=not.is.null&order=first_seen.desc&limit=${Math.max(1, Math.min(12, n || cfg.extractPerRun || 6))}`);
+export async function extractBatch(n, offset) {
+  const todo = await db(`catalog?select=id,raw,tries&extracted=eq.false&is_coffee=eq.true&available=eq.true&raw=not.is.null&order=id&offset=${Math.max(0, +offset || 0)}&limit=${Math.max(1, Math.min(12, n || cfg.extractPerRun || 6))}`);
   if (!todo.length) return { extracted: 0, left: 0 };
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
