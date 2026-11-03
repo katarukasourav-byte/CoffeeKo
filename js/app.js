@@ -322,7 +322,7 @@ function initSearch(){
   let h=null;
   const draw=()=>{const v=q.value.trim();if(v.length<2){box.hidden=true;box.innerHTML='';return;}
     const R=searchCat(v,8);
-    box.innerHTML=(R.length?R.map(p=>{const m=match(p);return`<button class="xr" data-act="coffee" data-id="${esc(p.id)}"><span class="xr-img">${p.image?`<img src="${esc(imgW(p.image,120))}" alt="" loading="lazy">`:''}</span><span class="xr-t"><b>${esc(p.name)}</b><span>${esc(p.roaster)} · ${esc(originLine(p))}${p.price?' · '+esc(priceText(p)):''}</span></span>${m?`<span class="xr-m m-${m.cls}">${m.score}%</span>`:''}</button>`;}).join(''):`<p class="xr-none">No coffee called “${esc(v)}” in our list yet.</p>`)
+    box.innerHTML=(R.length?R.map(p=>{const m=match(p);return`<button class="xr" data-act="coffee" data-id="${esc(p.id)}"><span class="xr-img">${p.image?`<img src="${esc(imgW(p.image,120))}" alt="">`:''}</span><span class="xr-t"><b>${esc(p.name)}</b><span>${esc(p.roaster)} · ${esc(originLine(p))}${p.price?' · '+esc(priceText(p)):''}</span></span>${m?`<span class="xr-m m-${m.cls}">${m.score}%</span>`:''}</button>`;}).join(''):`<p class="xr-none">No coffee called “${esc(v)}” in our list yet.</p>`)
       +`<button class="xr xr-web" data-act="websearch"><span class="xr-img">↗</span><span class="xr-t"><b>${R.length?'Not the one? ':''}Search the web for “${esc(v)}”</b><span>Finds it on roasters’ sites and checks the link works</span></span></button>`;
     box.hidden=false;};
   q.oninput=()=>{clearTimeout(h);h=setTimeout(draw,90);};
