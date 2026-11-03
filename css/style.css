@@ -579,3 +579,31 @@ footer{padding-bottom:110px}
 .shapers+.actions{margin-top:22px}
 @media (max-width:639px){.cd-gal img,.cd-noimg{aspect-ratio:auto;height:min(78vw,340px);object-fit:contain;background:#141210}.cd-gal.multi img{width:86%}}
 body:has(.xres:not([hidden])) .fabs{opacity:0;pointer-events:none}
+
+/* ---------- Nov update, round 2 ---------- */
+/* Opening screen: call to action */
+.hero-act{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:22px}
+.hero-cta{margin-top:0;pointer-events:auto;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.hero-note{font-size:14px;color:#BFA993;text-shadow:none}
+.hero-text{pointer-events:none}.hero-text a{pointer-events:auto}
+/* One colour identity through the story: every photo gets the same warm, dark grade
+   and fades into black at the edges, so the black-and-crema theme never disappears */
+#photos .ph:not(.bean) img{filter:saturate(.72) contrast(1.06) brightness(.8) sepia(.14)}
+#photos .ph:not(.bean)::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 45%,transparent 45%,rgba(0,0,0,.55) 80%,#000 100%),linear-gradient(180deg,rgba(0,0,0,.35),transparent 22%,transparent 62%,rgba(0,0,0,.7))}
+.caption{background:rgba(6,5,4,.78);border:1px solid rgba(212,176,140,.18);border-left:3px solid var(--accent)}
+.caption b{color:#F2E2CF}
+.stage-meter{color:var(--accent)}
+.story-line{position:absolute;left:0;top:0;height:2px;background:linear-gradient(90deg,#8A6A4C,var(--accent));z-index:5;width:0;pointer-events:none}
+/* Account sheet */
+.acct{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:0 0 20px}
+.danger-zone{border-top:1px solid #1E1E1E;padding-top:14px}
+.danger-zone summary{color:#E8908A}
+.danger-zone .field{margin:12px 0}
+footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px}
+.foot-links{display:flex;gap:16px}
+.foot-links a{color:var(--ink-soft)}
+/* Phones: room under sheet buttons so nothing floating covers them */
+@media (max-width:700px){.sheet{padding-bottom:calc(96px + env(safe-area-inset-bottom))}}
+.toast{border-radius:16px;max-width:min(92vw,420px);text-align:center}
+#photos .ph:not(.bean) img{filter:saturate(.66) contrast(1.06) brightness(.74) sepia(.16)}

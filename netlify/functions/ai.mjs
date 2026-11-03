@@ -24,9 +24,14 @@ function buildPrompt(task, p) {
     return `You are a specialty coffee expert helping someone build a taste profile.
 ${p.image ? 'Look at the attached photo of a coffee (usually the retail bag). Read every bit of text on the packaging.' : ''}
 ${p.hint ? `The person says the coffee is: "${clip(p.hint, 160)}".` : ''}
-Identify the coffee and describe it. Where the packaging states something, use it. Where it does not, fill in from general knowledge of that coffee, roaster, origin and processing, and mark source accordingly. Never invent a roast date or weight that isn't visible.
+Identify the coffee and describe it.
+Rules:
+- origin, region, process, variety, roastLevel, roastDate, netWeightG: give them ONLY if printed on the pack (or, with no photo, if you are sure from the name). Otherwise null. Never guess a process.
+- tastingNotes: copy the notes printed on the pack. Only if none are printed may you suggest typical notes.
+- acidity, body, sweetness, bitterness (1–5) are your estimates unless the pack prints a score.
+- onPack: list exactly which of these fields you read from the packaging: name, roaster, origin, region, process, variety, roastLevel, roastDate, netWeightG, tastingNotes, acidity, body, sweetness, bitterness.
 Return ONLY a JSON object:
-{"found":true|false,"name":string,"roaster":string|null,"origin":string|null,"region":string|null,"process":string|null,"variety":string|null,"roastLevel":"light"|"medium-light"|"medium"|"medium-dark"|"dark"|null,"roastDate":"YYYY-MM-DD"|null,"netWeightG":number|null,"tastingNotes":[up to 5 short notes],"aroma":short phrase,"acidity":1-5,"body":1-5,"sweetness":1-5,"bitterness":1-5,"packagingSays":one or two sentences summarising what the bag claims or null,"source":"packaging"|"knowledge"|"mixed","brewTip":one sentence of pour-over advice (ratio, grind, water temperature),"confidence":"high"|"medium"|"low"}`;
+{"found":true|false,"onPack":[field names],"name":string,"roaster":string|null,"origin":string|null,"region":string|null,"process":string|null,"variety":string|null,"roastLevel":"light"|"medium-light"|"medium"|"medium-dark"|"dark"|null,"roastDate":"YYYY-MM-DD"|null,"netWeightG":number|null,"tastingNotes":[up to 5 short notes],"aroma":short phrase,"acidity":1-5,"body":1-5,"sweetness":1-5,"bitterness":1-5,"packagingSays":one or two sentences summarising what the bag claims or null,"source":"packaging"|"knowledge"|"mixed","brewTip":one sentence of pour-over advice (ratio, grind, water temperature),"confidence":"high"|"medium"|"low"}`;
   }
   return null;
 }

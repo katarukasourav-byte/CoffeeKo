@@ -20,7 +20,9 @@ window.SITE = {
   hero: {
     title: 'Every cup was once a seed.',
     sub: 'Scroll to follow one Arabica bean back to the soil, then forward again to your pour-over.',
-    scrollLabel: 'Scroll'
+    scrollLabel: 'Scroll',
+    button: 'Build my coffee personality →',
+    buttonNote: 'Free account · 1-minute quiz'
   },
 
   /* ---------- Scroll story ----------
@@ -95,7 +97,9 @@ window.SITE = {
   /* ---------- Login screen ---------- */
   login: {
     title: 'Your coffee, remembered.',
-    sub: 'Create a free account to build your Coffee Personality, match coffees to your palate, and keep track of what’s on your shelf.'
+    sub: 'Take a one-minute quiz, rate the coffees you drink, and get matched to real coffees from Indian roasters. Free.',
+    signupTitle: 'Build your coffee personality',
+    signupButton: 'Create my account'
   },
 
   /* ---------- First-time setup: add past coffees ----------

@@ -76,6 +76,15 @@ const API = {
     const { error } = await sb.from('shelf').delete().eq('id', id).eq('user_id', user.id); fail(error);
   },
 
+  async deleteAccount() {
+    if (!sb) { try { localStorage.removeItem(LS); } catch (e) {} return; }
+    const { data } = await sb.auth.getSession();
+    const res = await fetch('/.netlify/functions/account', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (data.session?.access_token || '') }, body: JSON.stringify({ action: 'delete', confirm: 'DELETE' }) });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(out.message || 'Couldn’t delete the account');
+    await sb.auth.signOut();
+  },
+
   /* ---------- coffee catalogue (public, refreshed from roasters' shops) ---------- */
   async catalog() {
     if (!hasKeys) return [];

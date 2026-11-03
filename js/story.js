@@ -25,6 +25,8 @@ const STAGES=RAW.map((r,i)=>{
 document.querySelector('#hero h1').textContent=SITE.hero.title;
 document.querySelector('#hero p').textContent=SITE.hero.sub;
 document.querySelector('#hero .scroll-cue').lastChild.textContent=SITE.hero.scrollLabel||'Scroll';
+if(SITE.hero.button)document.querySelector('#hero .hero-cta').textContent=SITE.hero.button;
+document.querySelector('#hero .hero-note').textContent=SITE.hero.buttonNote||'';
 const wrap=document.getElementById('photos'), capWrap=document.getElementById('captions'), meter=document.getElementById('meter');
 STAGES.forEach((s,i)=>{
   const d=document.createElement('div');d.className='ph';
@@ -37,6 +39,7 @@ STAGES.forEach((s,i)=>{
   if(s.h){const c=document.createElement('div');c.className='caption';c.innerHTML='';const hb=document.createElement('b');hb.textContent=s.h;c.appendChild(hb);c.appendChild(document.createTextNode(s.t||''));if(s.cta){c.appendChild(document.createElement('br'));const a=document.createElement('a');a.className='cta';a.href='#profile';a.dataset.act='mycoffee';a.textContent=s.cta;c.appendChild(a);}capWrap.appendChild(c);s.cap=c;}
   meter.appendChild(document.createElement('i'));
 });
+const line=document.createElement('div');line.className='story-line';document.getElementById('stage').appendChild(line);
 const stage=document.getElementById('stage'), credit=document.getElementById('credit'), shade=document.querySelector('.shade'), hero=document.getElementById('hero'), story=document.getElementById('story'), bar=document.getElementById('bar');
 /* Load photos in order, a little ahead of the scroll position */
 function want(P){STAGES.forEach((s,i)=>{if(i&&!s.img.src&&P>s.a-.12)s.img.src=s.src;if(s.det&&!s.det.src&&P>.004)s.det.src=s.dsrc;});}
@@ -47,8 +50,8 @@ function render(){
   const P=clamp(-r.top/(story.offsetHeight-innerHeight));want(P);
   const onStory=r.bottom>60;
   bar.classList.toggle('on-story',onStory);bar.classList.toggle('on-app',!onStory);
-  shade.style.opacity=ss(.1,.135,P);
-  hero.style.opacity=1-ss(0,.03,P);hero.style.transform=`translateY(${-ss(0,.03,P)*30}px)`;
+  shade.style.opacity=ss(.1,.135,P);line.style.width=(P*100).toFixed(2)+'%';
+  hero.style.opacity=1-ss(0,.03,P);hero.style.visibility=P>.04?'hidden':'visible';hero.style.transform=`translateY(${-ss(0,.03,P)*30}px)`;
   let cur=0;
   STAGES.forEach((s,i)=>{
     const fin=i===0?1:ss(s.a,s.a+.02,P);

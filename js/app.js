@@ -40,11 +40,11 @@ async function init(){
     if(ev==='SIGNED_OUT'){location.reload();}
   });
   if(location.hash==='#reset'&&!API.demo){showAuth('newpass');return;}
-  if(!me){showAuth('signin');if(/^#(profile|explore|journal|shelf|app)$/.test(location.hash))setTimeout(()=>$('#auth').scrollIntoView(),60);return;}
+  if(!me){showAuth(knownDevice()?'signin':'signup');if(/^#(profile|explore|journal|shelf|app)$/.test(location.hash))setTimeout(()=>$('#auth').scrollIntoView(),60);return;}
   await loadUser();
 }
 async function loadUser(){
-  document.body.classList.add('signed-in');
+  document.body.classList.add('signed-in');if(!API.demo)try{localStorage.setItem('ck-has-account','1');}catch(e){}
   userName=API.demo?'':(me.name||'').split(' ')[0];
   $('#storeNote').textContent=API.demo?'Demo mode: saved in this browser only':(me.email||'');
   try{
@@ -93,8 +93,10 @@ function target(ex){
 }
 const andList=a=>{a=a.map((x,i)=>i?x.toLowerCase():x);return a.length<2?a.join(''):a.slice(0,-1).join(', ')+' and '+a[a.length-1];};
 const ATTR_WORD={acidity:'acidity',body:'body',sweetness:'sweetness',bitterness:'bitterness'};
+/* Enough to compare? Roast plus tasting notes, or at least three taste scores. */
+function infoOK(c){const sc=ATTRS.filter(([k])=>(c[k]??c.attrs?.[k])!=null).length;const notes=(c.tastingNotes||c.notes||[]).length;return(!!roastNum(c.roastLevel)&&notes>0)||sc>=3;}
 function match(c,T){
-  T=T||target(c.id);if(!T.ready)return null;
+  T=T||target(c.id);if(!T.ready||!infoOK(c))return null;
   let score=82;const pros=[],cons=[];
   ATTRS.forEach(([k,n])=>{const v=c[k]??c.attrs?.[k],t=T.attrs[k];if(v==null||t==null)return;const d=Math.abs(v-t);score-=Math.max(0,d-.4)*9;
     if(d<=.6)pros.push(`${n} close to what you like`);else if(d>=1.5)cons.push(`${v>t?(k==='body'?'Heavier':'More '+ATTR_WORD[k]):(k==='body'?'Lighter':'Less '+ATTR_WORD[k])} than you usually like`);});
@@ -420,7 +422,7 @@ function renderShelf(){
      <div class="s-left"><b>${Math.round(b.leftG)}</b> g left <span class="muted">· ~${f.cups} cups</span></div>
      <div class="gauge"><i style="width:${Math.min(100,b.leftG/b.bagG*100)}%"></i></div>
      <button class="btn small" data-s="cup" ${b.leftG<=0?'disabled':''}>Brewed a cup</button></article>`).join('')}</div>
-   <div class="actions fine-row"><label class="muted" for="remind">Shelf check reminder</label><select id="remind" style="width:auto">${[[3,'Every 3 days'],[5,'Every 5 days'],[7,'Every week'],[14,'Every 2 weeks'],[0,'Off']].map(([v,l])=>`<option value="${v}" ${s.remindEvery==v?'selected':''}>${l}</option>`).join('')}</select><span class="muted">Shown here when you open the page.</span></div>`;
+   <div class="actions fine-row"><label class="muted" for="remind">Shelf check reminder</label><select id="remind" style="width:auto">${[[3,'Every 3 days'],[5,'Every 5 days'],[7,'Every week'],[14,'Every 2 weeks'],[0,'Off']].map(([v,l])=>`<option value="${v}" ${s.remindEvery==v?'selected':''}>${l}</option>`).join('')}</select><span class="muted">Reminders appear here when you open CoffeeKo. There are no emails yet.</span></div>`;
   $('#remind').onchange=e=>{s.remindEvery=+e.target.value;saveProfile();renderShelf();};
   document.querySelectorAll('#shelf-body .scard[data-id]').forEach(card=>{
     const b=state.shelf.find(x=>x.id===card.dataset.id);
@@ -437,7 +439,7 @@ function openBagView(b){
    <div class="row c2" style="margin-top:18px"><div class="field"><label for="bvLeft">Grams left</label><input id="bvLeft" type="number" min="0" value="${Math.round(b.leftG)}"></div><div class="field"><label>&nbsp;</label>${!b.openedDate?'<button class="btn ghost" id="bvOpen" style="width:100%">Opened today</button>':''}</div></div>
    <div class="sheet-foot"><span class="actions"><button class="btn quiet" id="bvEdit">Edit details</button><button class="btn quiet danger" id="bvDone">Finished</button></span><button class="btn accent" id="bvSave">Save</button></div>`);
   const touch=()=>{b.updatedAt=Date.now();state.settings.shelfCheckedAt=Date.now();saveBag(b);saveProfile();renderShelf();};
-  $('#bvSave').onclick=()=>{b.leftG=Math.max(0,+$('#bvLeft').value||0);touch();closeSheet();toast('Updated');};
+  $('#bvSave').onclick=()=>{const v=Math.max(0,+$('#bvLeft').value||0);if(v>b.bagG){toast(`That’s more than the ${b.bagG} g bag. Refilled it? Tap Edit details and change the bag size.`);$('#bvLeft').focus();return;}b.leftG=v;touch();closeSheet();toast('Updated');};
   const o=$('#bvOpen');if(o)o.onclick=()=>{b.openedDate=isoD(today());touch();openBagView(b);};
   $('#bvEdit').onclick=()=>openBag(b);
   const d=$('#bvDone');d.onclick=()=>{if(d.dataset.sure){state.shelf=state.shelf.filter(x=>x.id!==b.id);delBag(b.id);closeSheet();renderAll();toast('Bag finished');}else{d.dataset.sure=1;d.textContent='Tap again to remove';}};
@@ -567,7 +569,7 @@ function linkCat(e){if(!e.name||!state.cat.length)return;const hit=searchCat([e.
   Object.assign(e,{catalogId:hit.id,url:hit.url,image:hit.image});}
 function fromAI(r){
   const cl=v=>v==null||isNaN(+v)?null:Math.min(5,Math.max(1,Math.round(+v)));
-  const e=blank(r.name);Object.assign(e,{roaster:r.roaster||'',origin:[r.origin,r.region].filter(Boolean).join(', '),process:r.process||'',roastLevel:r.roastLevel||'',roastDate:r.roastDate||'',netWeightG:r.netWeightG||null,tastingNotes:r.tastingNotes||[],aroma:r.aroma||'',attrs:{acidity:cl(r.acidity),body:cl(r.body),sweetness:cl(r.sweetness),bitterness:cl(r.bitterness)},packagingSays:r.packagingSays||'',source:r.source||'',brewTip:r.brewTip||''});return e;
+  const e=blank(r.name);Object.assign(e,{onPack:Array.isArray(r.onPack)?r.onPack:null,roaster:r.roaster||'',origin:[r.origin,r.region].filter(Boolean).join(', '),process:r.process||'',roastLevel:r.roastLevel||'',roastDate:r.roastDate||'',netWeightG:r.netWeightG||null,tastingNotes:r.tastingNotes||[],aroma:r.aroma||'',attrs:{acidity:cl(r.acidity),body:cl(r.body),sweetness:cl(r.sweetness),bitterness:cl(r.bitterness)},packagingSays:r.packagingSays||'',source:r.source||'',brewTip:r.brewTip||''});return e;
 }
 const BREWS=SITE.brews;
 function detailsForm(e,open){
@@ -591,11 +593,13 @@ function coffeeHeader(e){
   return`<div class="coffee-head"><span class="thumb" ${ph?`style="background-image:url('${esc(ph)}')"`:''}>${ph?'':beanIcon()}</span>
    <div><h3>${esc(e.name||'Unidentified coffee')}</h3><div class="by">${esc([e.roaster,e.origin].filter(Boolean).join(' · '))}</div></div></div>
    <div class="facts">${e.roastLevel?`<span class="chip static">${esc(cap(e.roastLevel))} roast</span>`:''}${e.process?`<span class="chip static">${esc(e.process)}</span>`:''}${(e.tastingNotes||[]).map(n=>`<span class="chip static">${esc(n)}</span>`).join('')}</div>
-   ${e.packagingSays?`<p class="bagsays"><span class="src">${e.source==='packaging'?'From the bag':e.source==='knowledge'?'From AI':e.source==='roaster'?'From the roaster':'Bag + AI'}</span>${esc(e.packagingSays)}</p>`:''}
+   ${e.packagingSays?`<p class="bagsays"><span class="src">${e.source==='packaging'?'From the bag':e.source==='knowledge'?'AI summary':e.source==='roaster'?'From the roaster':'Bag + AI'}</span>${esc(e.packagingSays)}</p>`:''}
+   ${Array.isArray(e.onPack)&&ATTRS.some(([k])=>e.attrs[k]!=null&&!e.onPack.includes(k))?'<p class="tip">Taste scores are AI estimates; the bag doesn’t print them.</p>':''}
    ${e.brewTip?`<p class="tip">Brew tip: ${esc(e.brewTip)}</p>`:''}`;
 }
 function matchBox(e){
-  const m=match(e);if(!m)return`<div class="matchbox"><span class="muted" style="grid-column:1/-1">Take the taste quiz to see how well coffees match your personality. <button class="btn ghost small" data-act="quiz">Start quiz</button></span></div>`;
+  const m=match(e);if(!m&&target().ready)return`<div class="matchbox"><span class="muted" style="grid-column:1/-1"><b style="color:var(--ink)">Not enough information to match yet.</b> Add the roast level and tasting notes (or a few taste scores) under Edit details.</span></div>`;
+  if(!m)return`<div class="matchbox"><span class="muted" style="grid-column:1/-1">Take the taste quiz to see how well coffees match your personality. <button class="btn ghost small" data-act="quiz">Start quiz</button></span></div>`;
   return`<div class="matchbox">${matchBadge(m)}<ul>${m.pros.map(x=>`<li>${esc(x)}</li>`).join('')}${m.cons.map(x=>`<li class="con">${esc(x)}</li>`).join('')}${!m.pros.length&&!m.cons.length?'<li>Not enough detail about this coffee to compare</li>':''}</ul></div>`;
 }
 function renderResult(editOpen){
@@ -623,13 +627,21 @@ function wireExtras(e){
   const d=$('#eDel');d.onclick=()=>{if(d.dataset.sure){state.journal=state.journal.filter(x=>x.id!==e.id);delEntry(e.id);closeSheet();renderAll();toast('Removed');}else{d.dataset.sure=1;d.textContent='Tap again to remove';}};
 }
 const CLAIMS=[['acidity','Acidity',true],['body','Body',true],['sweetness','Sweetness',true],['bitterness','Bitterness',true],['notes','Tasting notes',false],['roast','Roast level',false]];
+/* Where a value came from: printed on the bag, the roaster's shop, or an AI estimate */
+function claimSrc(e,k){
+  const f=k==='notes'?'tastingNotes':k==='roast'?'roastLevel':k;
+  if(e.source==='roaster')return['acidity','body','sweetness','bitterness'].includes(k)?'Estimated from the roaster’s description':'Roaster says';
+  if(Array.isArray(e.onPack))return e.onPack.includes(f)?'Bag says':'AI estimate, not on the bag';
+  if(e.source==='packaging')return'Bag says';
+  return e.source?'AI estimate':'You entered';
+}
 function claimVal(e,k){if(k==='notes')return e.tastingNotes.length?e.tastingNotes.join(', '):null;if(k==='roast')return e.roastLevel?cap(e.roastLevel):null;const v=e.attrs[k];return v?`${v} of 5`:null;}
 function renderRate(){
   const e=draft;
   const claims=CLAIMS.filter(([k])=>claimVal(e,k));
   openSheet(`${head('Rate it')}<h3>How was ${esc(e.name)}?</h3><p class="lead">Your answer shapes future matches.</p>
    <div class="verdicts" id="verdicts">${Object.entries(VL).map(([v,l])=>`<button data-v="${v}" aria-pressed="${e.verdict===v}">${l}</button>`).join('')}</div>
-   ${claims.length?`<div class="sec"><h4>Does the bag get it right?</h4><p class="muted">Optional. Tell us where your cup differed.</p><div id="claims"></div></div>`:''}
+   ${claims.length?`<div class="sec"><h4>Did it taste as described?</h4><p class="muted">Optional. Tell us where your cup differed.</p><div id="claims"></div></div>`:''}
    <div class="sec"><div class="field"><label for="rNotes">Notes</label><textarea id="rNotes" placeholder="What did you taste? Grind, ratio, anything you’d change.">${esc(e.myNotes)}</textarea></div>
    <div class="row c2"><div class="field"><label for="rBrew">Brewed with</label><select id="rBrew">${Object.entries(BREWS).map(([k,v])=>`<option value="${k}" ${k===e.brew?'selected':''}>${v}</option>`).join('')}</select></div>
    <div class="field"><label for="rBought">Bought on</label><input id="rBought" type="date" value="${esc(e.purchased||isoD(today()))}"></div></div></div>
@@ -637,7 +649,7 @@ function renderRate(){
      <div class="row c3" id="rShelfF" hidden style="margin-top:12px"><div class="field"><label for="rRD">Roasted on</label><input id="rRD" type="date" value="${esc(e.roastDate||'')}"></div><div class="field"><label for="rBag">Bag (g)</label><input id="rBag" type="number" min="1" value="${e.netWeightG||250}"></div><div class="field"><label for="rLeft">Grams left</label><input id="rLeft" type="number" min="0" value="${e.netWeightG||250}"></div></div></div>`:''}
    <div class="sheet-foot"><button class="btn quiet" id="rBack">Back</button><button class="btn accent big" id="rSave">Save rating</button></div>`);
   sheet.querySelectorAll('#verdicts button').forEach(b=>b.onclick=()=>{e.verdict=b.dataset.v;sheet.querySelectorAll('#verdicts button').forEach(x=>x.setAttribute('aria-pressed',x===b));});
-  const drawClaims=()=>{const el=$('#claims');if(!el)return;el.innerHTML=claims.map(([k,n,num])=>{const r=e.ratings[k]||{};return`<div class="claim" data-k="${k}"><div><b>${n}</b><span class="val">Bag says: ${esc(claimVal(e,k))}</span></div>
+  const drawClaims=()=>{const el=$('#claims');if(!el)return;el.innerHTML=claims.map(([k,n,num])=>{const r=e.ratings[k]||{};return`<div class="claim" data-k="${k}"><div><b>${n}</b><span class="val">${esc(claimSrc(e,k))}: ${esc(claimVal(e,k))}</span></div>
      <div class="seg" role="group" aria-label="${n}">${['agree','neutral','disagree'].map(v=>`<button class="${v}" data-r="${v}" aria-pressed="${r.v===v}">${cap(v)}</button>`).join('')}</div>
      ${num&&r.v==='disagree'?`<div class="dirrow">I found it <span class="seg"><button class="dir" data-d="1" aria-pressed="${r.dir===1}">${k==='body'?'heavier':'stronger'}</button><button class="dir" data-d="-1" aria-pressed="${r.dir===-1}">${k==='body'?'lighter':'weaker'}</button></span></div>`:''}</div>`;}).join('');
     el.querySelectorAll('.claim').forEach(c=>{const k=c.dataset.k;c.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{const cur=e.ratings[k]||{};e.ratings[k]={v:b.dataset.r,dir:b.dataset.r==='disagree'?cur.dir||0:0};drawClaims();});c.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{e.ratings[k].dir=+b.dataset.d;drawClaims();});});};
@@ -648,6 +660,7 @@ function renderRate(){
     if(!e.verdict)return toast('Pick how it was first');
     e.myNotes=$('#rNotes').value.trim();e.brew=$('#rBrew').value;e.purchased=$('#rBought').value;
     let bag=null;
+    if($('#rShelf')?.checked&&(+$('#rLeft').value||0)>(+$('#rBag').value||250)){toast('Grams left can’t be more than the bag size.');$('#rLeft').focus();return;}
     if($('#rShelf')?.checked){const rd=$('#rRD').value;bag={id:uid(),entryId:e.id,name:e.name+(e.roaster?' · '+e.roaster:''),roastLevel:e.roastLevel||'medium',roastDate:rd||isoD(today()),roastDateGuessed:!rd,openedDate:'',bagG:+$('#rBag').value||250,leftG:+$('#rLeft').value||0,doseG:15,cupsPerDay:1,updatedAt:Date.now()};}
     e.status='rated';delete e.suggestions;
     commit(e);if(bag){state.shelf.push(bag);saveBag(bag);}
@@ -671,6 +684,7 @@ function openBag(b){
   $('#bSave').onclick=()=>{
     const name=$('#bName').value.trim();if(!name){toast('Add the coffee’s name');$('#bName').focus();return;}
     if(!$('#bRD').value){toast('Add the roast date');$('#bRD').focus();return;}
+    if((+$('#bLeft').value||0)>(+$('#bBag').value||250)){toast('Grams left can’t be more than the bag size. Refilled it? Raise the bag size too.');$('#bLeft').focus();return;}
     const t=edit?b:{id:uid(),entryId:b.entryId||null};
     Object.assign(t,{name,roastLevel:$('#bRoast').value,roastDate:$('#bRD').value,roastDateGuessed:false,openedDate:$('#bOpened').value,bagG:Math.max(1,+$('#bBag').value||250),leftG:Math.max(0,+$('#bLeft').value||0),doseG:Math.max(1,+$('#bDose').value||15),cupsPerDay:Math.max(.5,+$('#bCpd').value||1),updatedAt:Date.now()});
     if(!edit)state.shelf.push(t);state.settings.shelfCheckedAt=Date.now();saveBag(t);saveProfile();closeSheet();renderAll();toast(edit?'Bag saved':'Added to shelf');
@@ -770,7 +784,7 @@ function applyContent(){
   t('#xh',S.explore?.title);t('#xh + p',S.explore?.sub);t('#mmBtn',S.explore?.matchmaker);
   t('#jh',S.journal?.title);t('#jh + p',S.journal?.sub);
   t('#sh',S.shelf?.title);t('#sh + p',S.shelf?.sub);
-  t('footer',SITE.footer);
+  t('footer>span',SITE.footer);
 }
 let authMode='signin';
 function showAuth(mode){
@@ -779,7 +793,7 @@ function showAuth(mode){
   const box=$('#auth');
   const F={
     signin:{h:'Sign in',btn:'Sign in',fields:['email','password'],alt:`<button class="btn quiet" data-auth="forgot">Forgot password?</button><span class="muted">New here? <button class="linkbtn" data-auth="signup">Create an account</button></span>`},
-    signup:{h:'Create your account',btn:'Create account',fields:['name','email','newpassword'],alt:`<span class="muted">Already have an account? <button class="linkbtn" data-auth="signin">Sign in</button></span>`},
+    signup:{h:L.signupTitle||'Build your coffee personality',btn:L.signupButton||'Create my account',fields:['name','email','newpassword'],alt:`<span class="muted">Already have an account? <button class="linkbtn" data-auth="signin">Sign in</button></span>`},
     forgot:{h:'Reset your password',btn:'Send reset link',fields:['email'],alt:`<button class="linkbtn" data-auth="signin">Back to sign in</button>`},
     newpass:{h:'Choose a new password',btn:'Save password',fields:['newpassword'],alt:''},
     sent:{h:'Check your email',btn:null,fields:[],alt:`<button class="linkbtn" data-auth="signin">Back to sign in</button>`}
@@ -795,8 +809,8 @@ function showAuth(mode){
    ${F.fields.map(f=>field[f]).join('')}
    <p class="status err" id="aErr" role="alert"></p>
    ${F.btn?`<button class="btn accent big" style="width:100%" type="submit">${F.btn}</button>`:''}
-   <div class="auth-alt">${F.alt}</div></form></div>`;
-  box.querySelectorAll('[data-auth]').forEach(b=>b.onclick=e=>{e.preventDefault();showAuth(b.dataset.auth);});
+   <div class="auth-alt">${F.alt}</div>${authMode==='signup'?'<p class="muted fine" style="margin-top:16px">By creating an account you agree to how we use your data, explained in our <a href="privacy.html" target="_blank" rel="noopener">privacy page</a>.</p>':''}</form></div>`;
+  box.querySelectorAll('[data-auth]').forEach(b=>b.onclick=e=>{e.preventDefault();box.dataset.touched=1;showAuth(b.dataset.auth);});
   const f=$('#authForm');
   f.onsubmit=async e=>{
     e.preventDefault();const err=$('#aErr');err.textContent='';
@@ -819,9 +833,11 @@ function showAuth(mode){
 }
 
 /* =================== global actions =================== */
+/* New visitors see "Create account" first; anyone who has signed in on this device sees "Sign in" */
+const knownDevice=()=>{try{return localStorage.getItem('ck-has-account')==='1';}catch(e){return false;}};
 function goMyCoffee(){
   if(document.body.classList.contains('signed-in')){document.getElementById('profile').scrollIntoView({behavior:'smooth'});return;}
-  if(!['signin','signup'].includes(authMode)||!$('#auth').innerHTML.trim())showAuth('signin');
+  if(!['signin','signup'].includes(authMode)||!$('#auth').innerHTML.trim()||!$('#auth').dataset.touched)showAuth(knownDevice()?'signin':'signup');
   $('#auth').scrollIntoView({behavior:'smooth'});
   setTimeout(()=>{const f=$('#aEmail');f&&f.focus({preventScroll:true});},500);
 }
@@ -829,7 +845,7 @@ document.addEventListener('click',e=>{
   const a=e.target.closest('[data-act]');if(!a)return;
   const act=a.dataset.act;
   if(a.tagName==='A'&&['mycoffee','coffee'].includes(act))e.preventDefault();
-  if(act==='mycoffee')return goMyCoffee();
+  if(act==='mycoffee'||act==='join')return goMyCoffee();
   if(act==='coffee'){const p=catById.get(a.dataset.id);if(p)openCoffee(p);return;}
   if(act==='types')return openTypes();
   if(act==='websearch')return webSearch();
@@ -855,6 +871,20 @@ document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.tar
   top.onclick=()=>{const a=document.getElementById('app');scrollTo({top:a.offsetTop,behavior:'smooth'});};
   new MutationObserver(upd).observe(document.body,{attributes:true,attributeFilter:['class']});})();
 initSearch();
-$('#signOut').onclick=async()=>{await API.signOut();if(API.demo)toast('Demo mode has no account to sign out of');};
+/* Account sheet: sign out, privacy, help, delete account */
+function openAccount(){
+  openSheet(`${head('Your account')}<h3>Your account</h3><p class="lead">${esc(me?.email||'')}</p>
+   <div class="acct"><button class="btn ghost" id="acOut">Sign out</button>
+   <a class="btn quiet" href="privacy.html" target="_blank" rel="noopener">Privacy and your data</a>
+   <a class="btn quiet" href="mailto:hello@coffeeko.in?subject=CoffeeKo%20help">Help: hello@coffeeko.in</a></div>
+   <details class="more danger-zone"><summary>Delete my account</summary>
+   <p class="muted">This permanently deletes your account, Coffee Personality, journal, shelf and photos. It can’t be undone.</p>
+   <div class="field"><label for="acConfirm">Type DELETE to confirm</label><input id="acConfirm" type="text" autocomplete="off"></div>
+   <button class="btn danger ghost" id="acDel" disabled>Delete everything</button><p class="status err" id="acErr"></p></details>`);
+  $('#acOut').onclick=async()=>{await API.signOut();if(API.demo){closeSheet();toast('Demo mode has no account to sign out of');}};
+  const c=$('#acConfirm'),d=$('#acDel');c.oninput=()=>d.disabled=c.value.trim()!=='DELETE';
+  d.onclick=async()=>{d.disabled=true;$('#acErr').textContent='';try{await API.deleteAccount();try{localStorage.removeItem('ck-has-account');}catch(e){}closeSheet();toast('Your account has been deleted');setTimeout(()=>location.replace(location.pathname),1200);}catch(e){$('#acErr').textContent=e.message;d.disabled=false;}};
+}
+$('#signOut').onclick=openAccount;
 init();
 })();
