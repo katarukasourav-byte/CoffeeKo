@@ -160,6 +160,13 @@
         "marcscoffee.in",
         "www.marcscoffee.in"
       ]
+    },
+    {
+      "name": "Tulum Coffee",
+      "domains": [
+        "www.tulum.coffee",
+        "tulum.coffee"
+      ]
     }
   ],
   "extractPerRun": 6,
