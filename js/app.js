@@ -40,7 +40,7 @@ async function init(){
     if(ev==='SIGNED_OUT'){location.reload();}
   });
   if(location.hash==='#reset'&&!API.demo){showAuth('newpass');return;}
-  if(!me){showAuth('signin');if(/^#(profile|explore|journal|shelf|app)$/.test(location.hash))setTimeout(()=>document.getElementById('app').scrollIntoView(),60);return;}
+  if(!me){showAuth('signin');if(/^#(profile|explore|journal|shelf|app)$/.test(location.hash))setTimeout(()=>$('#auth').scrollIntoView(),60);return;}
   await loadUser();
 }
 async function loadUser(){
@@ -822,7 +822,7 @@ function showAuth(mode){
 function goMyCoffee(){
   if(document.body.classList.contains('signed-in')){document.getElementById('profile').scrollIntoView({behavior:'smooth'});return;}
   if(!['signin','signup'].includes(authMode)||!$('#auth').innerHTML.trim())showAuth('signin');
-  document.getElementById('app').scrollIntoView({behavior:'smooth'});
+  $('#auth').scrollIntoView({behavior:'smooth'});
   setTimeout(()=>{const f=$('#aEmail');f&&f.focus({preventScroll:true});},500);
 }
 document.addEventListener('click',e=>{
