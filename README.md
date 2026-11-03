@@ -1,6 +1,6 @@
 # CoffeeKo
 
-A coffee website for **coffeeko.in**: a scroll story (bean to cup), user accounts, a Coffee Personality that updates with every rating, a catalogue of real coffees from Indian roasters with direct links, live search, bulk import of past coffees with rating reminders, a journal and a freshness-tracking shelf.
+A coffee website for **coffeeko.in**: a scroll story (bean to cup), user accounts, a Coffee Personality that updates with every rating, a catalogue of real coffees from specialty roasters around the world with direct links, prices in each shop's currency, live search, bulk import of past coffees with rating reminders, a journal and a freshness-tracking shelf.
 
 - **Hosting:** Netlify (static files + one server function)
 - **Accounts and database:** Supabase (email + password login, Postgres)
@@ -82,7 +82,8 @@ Every change works the same way: **open the file on github.com → pencil icon �
 | Site name in the header | `config/content.js` | `brand:` |
 | Title Google and browser tabs show | `config/content.js` `pageTitle:` and the `<title>` / `description` lines at the top of `index.html` | |
 | Coffee Personality names and descriptions | `config/content.js` | `personalities:` |
-| Roasters in the catalogue | `config/catalog.json` | the `roasters` list (Shopify shops only) |
+| Roasters in the catalogue | `config/catalog.json` | the `roasters` list (Shopify shops only; set `country` and `currency`) |
+| Feedback & contact messages | Netlify → Forms → `contact` | turn on **Form notifications → Email** to get each message in your inbox |
 | “Add past coffees” wording, how many photos at once | `config/content.js` | `onboarding:` |
 | Rating reminder wording, snooze length | `config/content.js` | `reminders:` |
 | Quiz questions and answers | `config/content.js` | `quiz:` |
@@ -106,6 +107,7 @@ Every change works the same way: **open the file on github.com → pencil icon �
 - **See users:** Supabase → Authentication → Users.
 - **See their coffees:** Supabase → Table Editor → `journal`, `shelf`, `profiles`.
 - **See AI use per day:** Table Editor → `ai_usage_by_day`.
+- **Read feedback:** Netlify → Forms → contact.
 - **See the catalogue:** Table Editor → `catalog` (coffees) and `catalog_roasters` (when each shop was last read, and whether it worked).
 - **Privacy:** every table has rules so a logged-in user can only read and change their own rows. The `ai_usage` table can only be touched by the server function.
 - **Free plan notes:** Supabase’s free plan pauses a project after a week with no activity (restore it from the dashboard), and includes 500 MB of database, which is plenty for thousands of users’ journals.
