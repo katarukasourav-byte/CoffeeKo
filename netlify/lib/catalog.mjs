@@ -109,7 +109,7 @@ Output format: one JSON object per product, each on its own single line, nothing
 ${items.map(i => `### id: ${i.id}\n${i.raw}`).join('\n\n')}`;
 
 export async function extractBatch(n) {
-  const todo = await db(`catalog?select=id,raw,tries&extracted=eq.false&is_coffee=eq.true&raw=not.is.null&limit=${Math.max(1, Math.min(12, n || cfg.extractPerRun || 6))}`);
+  const todo = await db(`catalog?select=id,raw,tries&extracted=eq.false&is_coffee=eq.true&available=eq.true&raw=not.is.null&order=first_seen.desc&limit=${Math.max(1, Math.min(12, n || cfg.extractPerRun || 6))}`);
   if (!todo.length) return { extracted: 0, left: 0 };
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -137,7 +137,7 @@ export async function extractBatch(n) {
     await db(`catalog?id=eq.${encodeURIComponent(it.id)}`, { method: 'PATCH', body: JSON.stringify(patch) });
   }
   // anything the AI skipped is retried next time; count what is left
-  const left = await fetch(env('SUPABASE_URL') + '/rest/v1/catalog?select=id&extracted=eq.false&is_coffee=eq.true', { method: 'HEAD', headers: { apikey: env('SUPABASE_SERVICE_ROLE_KEY'), Authorization: 'Bearer ' + env('SUPABASE_SERVICE_ROLE_KEY'), Prefer: 'count=exact' } });
+  const left = await fetch(env('SUPABASE_URL') + '/rest/v1/catalog?select=id&extracted=eq.false&is_coffee=eq.true&available=eq.true', { method: 'HEAD', headers: { apikey: env('SUPABASE_SERVICE_ROLE_KEY'), Authorization: 'Bearer ' + env('SUPABASE_SERVICE_ROLE_KEY'), Prefer: 'count=exact' } });
   return { extracted: items.length, left: +(left.headers.get('content-range') || '/0').split('/')[1] || 0, usage: out.usage };
 }
 
