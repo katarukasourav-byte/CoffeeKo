@@ -39,6 +39,7 @@ export async function findCoffee(q, region, tz) {
   return checked.filter(Boolean);
 }
 /* Open each page: keep it only if it loads. Shopify shops give us the real photo and price. */
+const CUR = t => { const s = String(t || ''); return /₹|\bRs\.?|\bINR\b/i.test(s) ? 'INR' : /£|\bGBP\b/i.test(s) ? 'GBP' : /€|\bEUR\b/i.test(s) ? 'EUR' : /A\$|\bAUD\b/i.test(s) ? 'AUD' : /C\$|\bCAD\b/i.test(s) ? 'CAD' : /\bAED\b|د\.إ/i.test(s) ? 'AED' : /S\$|\bSGD\b/i.test(s) ? 'SGD' : /¥|\bJPY\b/i.test(s) ? 'JPY' : /\$|\bUSD\b/i.test(s) ? 'USD' : null; };
 async function verify(x, seen) {
   let u; try { u = new URL(x.url); } catch { return null; }
   if (!/^https?:$/.test(u.protocol)) return null;
@@ -50,6 +51,9 @@ async function verify(x, seen) {
       if (r.ok) {
         const p = (await r.json()).product;
         Object.assign(item, { name: p.title, url: `${u.origin}/products/${p.handle}`, image: p.images?.[0]?.src || null, images: (p.images || []).slice(0, 4).map(i => i.src), raw: `Title: ${p.title}\nTags: ${p.tags}\nDescription: ${strip(p.body_html).slice(0, 1800)}`, ...packOf(p) });
+        // Shopify doesn't say which currency; take it from the price the search saw, else leave the number out
+        item.currency = CUR(x.price) || (/\.in$/.test(u.hostname) ? 'INR' : null);
+        if (!item.currency) { item.price_inr = null; item.price_250 = null; }
         item.verified = true; return item;
       }
     }
@@ -64,7 +68,7 @@ async function verify(x, seen) {
 export async function addToCatalog(it) {
   const id = new URL(it.url).host.replace(/^www\./, '') + new URL(it.url).pathname.replace(/\/$/, '');
   const row = { id, roaster: it.roaster || new URL(it.url).host, name: it.name, url: it.url, image: it.image, images: it.images || (it.image ? [it.image] : []),
-    price_inr: it.price_inr || null, pack_g: it.pack_g || null, price_250: it.price_250 || null, available: it.available !== false,
+    price_inr: it.price_inr || null, pack_g: it.pack_g || null, price_250: it.price_250 || null, currency: it.currency || null, available: it.available !== false,
     origin: it.origin, process: it.process, roast_level: it.roast_level, notes: it.notes, source: 'web', raw: it.raw || null, extracted: !it.raw, is_coffee: true, updated_at: new Date().toISOString() };
   await db('catalog?on_conflict=id', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates' }, body: JSON.stringify([row]) });
   return id;

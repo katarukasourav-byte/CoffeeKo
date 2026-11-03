@@ -79,7 +79,7 @@ export async function syncRoaster(name) {
     const raw = [`Title: ${p.title}`, `Type: ${p.product_type || ''}`, `Tags: ${(p.tags || []).join(', ')}`, `Sizes: ${(p.variants || []).map(v => v.title).slice(0, 8).join(' | ')}`, `Description: ${strip(p.body_html).slice(0, 1800)}`].join('\n');
     const h = hash(raw), id = domain.replace(/^www\./, '') + '/' + p.handle;
     const row = { id, roaster: R.name, name: p.title.trim(), url: `https://${domain}/products/${p.handle}`, image: p.images?.[0]?.src || null,
-      images: (p.images || []).slice(0, 4).map(i => i.src), product_type: p.product_type || null, raw, content_hash: h, source: 'shop', updated_at: new Date().toISOString(), ...packOf(p) };
+      images: (p.images || []).slice(0, 4).map(i => i.src), product_type: p.product_type || null, raw, content_hash: h, source: 'shop', currency: R.currency || 'INR', updated_at: new Date().toISOString(), ...packOf(p) };
     if (prev[id] !== h) { row.extracted = false; row.is_coffee = true; }
     return row;
   });

@@ -60,7 +60,7 @@ async function loadCatalog(force){
   catch(e){console.warn(e);state.catState='error';}
   renderExplore();renderJournal();
 }
-const fromCat=r=>({id:r.id,catalogId:r.id,name:r.name,roaster:r.roaster,origin:r.origin||'',region:r.region||'',estate:r.estate||'',altitude:r.altitude||'',variety:r.variety||'',process:r.process||'',processDetail:r.process_detail||'',grade:r.grade||'',blend:r.blend,roastLevel:r.roast_level||'',notes:r.notes||[],tastingNotes:r.notes||[],acidity:r.acidity,body:r.body,sweetness:r.sweetness,bitterness:r.bitterness,summary:r.summary||'',url:r.url,image:r.image,images:(r.images&&r.images.length?r.images:[r.image]).filter(Boolean),price:r.price_inr,packG:r.pack_g,price250:r.price_250,available:r.available!==false,source:r.source,updatedAt:r.updated_at});
+const fromCat=r=>({id:r.id,catalogId:r.id,name:r.name,roaster:r.roaster,origin:r.origin||'',region:r.region||'',estate:r.estate||'',altitude:r.altitude||'',variety:r.variety||'',process:r.process||'',processDetail:r.process_detail||'',grade:r.grade||'',blend:r.blend,roastLevel:r.roast_level||'',notes:r.notes||[],tastingNotes:r.notes||[],acidity:r.acidity,body:r.body,sweetness:r.sweetness,bitterness:r.bitterness,summary:r.summary||'',url:r.url,image:r.image,images:(r.images&&r.images.length?r.images:[r.image]).filter(Boolean),price:r.price_inr,currency:r.currency||'INR',packG:r.pack_g,price250:r.price_250,available:r.available!==false,source:r.source,updatedAt:r.updated_at});
 
 /* =================== taste model =================== */
 const FAM=Object.fromEntries(Object.entries(SITE.flavours).map(([k,v])=>[k,{l:v.label,w:v.words}]));
@@ -142,7 +142,8 @@ async function identify(blob,hint,kind){
 const AMZ=(()=>{const l=(navigator.language||'').toLowerCase(),r=l.split('-')[1]||'';return{in:'amazon.in',gb:'amazon.co.uk',uk:'amazon.co.uk',au:'amazon.com.au',ca:'amazon.ca',de:'amazon.de',fr:'amazon.fr',it:'amazon.it',es:'amazon.es',nl:'amazon.nl',jp:'amazon.co.jp',ae:'amazon.ae',sg:'amazon.sg',sa:'amazon.sa'}[r]||(Intl.DateTimeFormat().resolvedOptions().timeZone==='Asia/Calcutta'||Intl.DateTimeFormat().resolvedOptions().timeZone==='Asia/Kolkata'?'amazon.in':'amazon.com');})();
 const amazon=p=>`https://www.${AMZ}/s?k=${encodeURIComponent([p.roaster,p.name,'coffee'].filter(Boolean).join(' '))}`;
 const imgW=(u,w)=>u&&/cdn\.shopify\.com|\/cdn\/shop\//.test(u)?u+(u.includes('?')?'&':'?')+'width='+w:u;
-const priceText=p=>p.price?`₹${p.price.toLocaleString('en-IN')}${p.packG?' · '+p.packG+' g':''}`:(p.priceText||p.priceINR||'');
+const money=(n,c)=>{try{return new Intl.NumberFormat(undefined,{style:'currency',currency:c||'INR',maximumFractionDigits:c&&c!=='INR'&&c!=='JPY'?2:0}).format(n);}catch(e){return(c||'')+' '+n;}};
+const priceText=p=>p.price?`${money(p.price,p.currency)}${p.packG?' · '+p.packG+' g':''}`:(p.priceText||p.priceINR||'');
 const originLine=p=>p.blend&&!p.origin?'Blend':[p.region,p.origin].filter(Boolean).join(', ')||'Origin not stated';
 const search=p=>`https://www.google.com/search?q=${encodeURIComponent([p.roaster,p.name,'buy'].filter(Boolean).join(' '))}`;
 /* =================== section nav =================== */
@@ -236,7 +237,7 @@ function openTypes(){
 }
 /* ---------- explore ---------- */
 let xf='all',xAll=false;
-const XF=[['all','All'],['top','Top matches'],['light','Light roast'],['medium','Medium'],['dark','Dark'],['fruity','Fruity'],['chocolate','Chocolatey'],['natural','Natural'],['washed','Washed'],['single','Single origin'],['blend','Blends'],['budget','Under ₹600']];
+const XF=[['all','All'],['top','Top matches'],['light','Light roast'],['medium','Medium'],['dark','Dark'],['fruity','Fruity'],['chocolate','Chocolatey'],['natural','Natural'],['washed','Washed'],['single','Single origin'],['blend','Blends'],['budget','Best value']];
 const keyOf=p=>((p.roaster||'')+'|'+(p.name||'')).toLowerCase();
 const inJournal=p=>state.journal.find(e=>(p.id&&e.catalogId===p.id)||keyOf(e)===keyOf(p));
 function diversify(L){const out=[],rest=L.slice();while(rest.length){let i=rest.findIndex(x=>!(out.length>=2&&out[out.length-1].p.roaster===x.p.roaster&&out[out.length-2].p.roaster===x.p.roaster));if(i<0)i=0;out.push(rest.splice(i,1)[0]);}return out;}
@@ -249,7 +250,7 @@ function exploreList(){
     if(f==='top')return m&&m.score>=75;if(f==='light')return r==='light';if(f==='medium')return r==='medium';if(f==='dark')return r==='medium-dark'||r==='dark';
     if(f==='fruity')return fm.has('fruity')||fm.has('citrus');if(f==='chocolate')return fm.has('chocolate')||fm.has('nutty');
     if(f==='natural')return /natural|anaerobic|carbonic/.test(pr);if(f==='washed')return /washed/.test(pr);
-    if(f==='single')return p.blend===false;if(f==='blend')return p.blend===true;if(f==='budget')return (p.price250||p.price)&&(p.price250||p.price)<600;return true;});
+    if(f==='single')return p.blend===false;if(f==='blend')return p.blend===true;if(f==='budget')return p.price250&&p.price250<=valueLine(p.currency);return true;});
   return diversify(L).map(x=>Object.assign(x,{saved:!!inJournal(x.p)}));
 }
 function xcard({p,m,saved}){
@@ -262,6 +263,8 @@ function xcard({p,m,saved}){
       <div class="x-foot"><span class="price">${esc(priceText(p))}</span><span class="x-more">Details</span></div></div>
   </article>`;
 }
+/* 'Best value': the cheaper third of the list per 250 g, compared within the same currency */
+const valueLine=c=>{const v=state.cat.filter(x=>x.currency===c&&x.price250).map(x=>x.price250).sort((a,b)=>a-b);return v.length?v[Math.floor(v.length/3)]:0;};
 let XL=[];
 function renderExplore(){
   const el=$('#explore-body');if(!el)return;
@@ -297,7 +300,7 @@ function openCoffee(p){
     <div class="cd-gal${imgs.length>1?' multi':''}">${imgs.length?imgs.map((u,i)=>`<img src="${esc(imgW(u,900))}" alt="${i?'':'Packaging of '+esc(p.name)}" ${i?'loading="lazy"':''}>`).join(''):`<div class="cd-noimg">${beanIcon()}</div>`}</div>
     <div class="cd-head"><span class="kicker">${esc(p.roaster)}</span><h3>${esc(p.name)}</h3>
       ${p.summary?`<p class="cd-sum">${esc(p.summary)}</p>`:''}
-      <div class="cd-price"><b>${esc(priceText(p))}</b>${p.price250&&p.packG&&p.packG!==250?`<span class="muted">≈ ₹${p.price250} per 250 g</span>`:''}${p.available===false?'<span class="vtag v-dislike">Out of stock</span>':''}</div>
+      <div class="cd-price"><b>${esc(priceText(p))}</b>${p.price250&&p.packG&&p.packG!==250?`<span class="muted">≈ ${money(p.price250,p.currency)} per 250 g</span>`:''}${p.available===false?'<span class="vtag v-dislike">Out of stock</span>':''}</div>
       <div class="actions">${p.url?`<a class="btn accent" href="${esc(p.url)}" target="_blank" rel="noopener">Buy from ${esc(p.roaster)} ↗</a>`:''}<a class="btn ghost small" href="${amazon(p)}" target="_blank" rel="noopener">Search on Amazon</a></div>
     </div>
    </div>
@@ -341,10 +344,10 @@ async function webSearch(){
   try{
     const R=await API.ai('find',{q:v,region:(navigator.language||'').split('-')[1]||'',tz:Intl.DateTimeFormat().resolvedOptions().timeZone||''});
     const el=$('.wres');if(!el)return;
-    el.innerHTML=R.length?R.map((it,i)=>`<div class="wr"><span class="xr-img">${it.image?`<img src="${esc(imgW(it.image,160))}" alt="">`:beanIcon()}</span><div class="wr-t"><b>${esc(it.name)}</b><span class="muted">${esc(it.roaster||new URL(it.url).host)}${it.price_inr?' · ₹'+it.price_inr+(it.pack_g?' / '+it.pack_g+' g':''):it.price_text?' · '+esc(it.price_text):''}</span>
+    el.innerHTML=R.length?R.map((it,i)=>`<div class="wr"><span class="xr-img">${it.image?`<img src="${esc(imgW(it.image,160))}" alt="">`:beanIcon()}</span><div class="wr-t"><b>${esc(it.name)}</b><span class="muted">${esc(it.roaster||new URL(it.url).host)}${it.price_inr&&it.currency?' · '+money(it.price_inr,it.currency)+(it.pack_g?' / '+it.pack_g+' g':''):it.price_text?' · '+esc(it.price_text):''}</span>
       <span class="wr-a"><a class="btn ghost small" href="${esc(it.url)}" target="_blank" rel="noopener">Open page ↗</a><button class="btn accent small" data-w="${i}">Save to try</button></span></div></div>`).join(''):`<p class="muted">Nothing for sale turned up for “${esc(v)}”. Try the roaster’s name with the coffee’s name.</p>`;
     sheet.querySelector('.lead').textContent=R.length?'Each link below opened when we checked it. Saving adds the coffee to your journal and to CoffeeKo’s list for everyone.':'';
-    el.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>{const it=R[+b.dataset.w];savePick({id:it.catalogId,name:it.name,roaster:it.roaster,origin:it.origin,process:it.process,roastLevel:it.roast_level,notes:it.notes,image:it.image,url:it.url,price:it.price_inr,packG:it.pack_g,priceText:it.price_text});b.textContent='Saved';b.disabled=true;});
+    el.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>{const it=R[+b.dataset.w];savePick({id:it.catalogId,name:it.name,roaster:it.roaster,origin:it.origin,process:it.process,roastLevel:it.roast_level,notes:it.notes,image:it.image,url:it.url,price:it.currency?it.price_inr:null,currency:it.currency,packG:it.pack_g,priceText:it.price_text});b.textContent='Saved';b.disabled=true;});
     loadCatalog(true);
   }catch(e){const el=$('.wres');if(el)el.innerHTML=`<p class="status err">${esc(errMsg(e))}</p>`;}
 }
