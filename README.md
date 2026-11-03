@@ -1,10 +1,11 @@
-# Palate & Pour
+# CoffeeKo
 
-A coffee website for **coffeeko.in**: a scroll story (bean to cup), user accounts, a Taste ID, AI coffee matching for India, bulk import of past coffees with rating reminders, a journal and a freshness-tracking shelf.
+A coffee website for **coffeeko.in**: a scroll story (bean to cup), user accounts, a Coffee Personality that updates with every rating, a catalogue of real coffees from Indian roasters with direct links, live search, bulk import of past coffees with rating reminders, a journal and a freshness-tracking shelf.
 
 - **Hosting:** Netlify (static files + one server function)
 - **Accounts and database:** Supabase (email + password login, Postgres)
-- **AI:** Claude Haiku 5.5 via the Anthropic API, called only from the server function. Swappable to Gemini.
+- **AI:** Claude Haiku 5.5 via the Anthropic API, called only from the server functions: reading bag photos, reading roasters' product descriptions for the catalogue, and web search for coffees not in the catalogue. Recommendations themselves are calculated in the browser and cost nothing.
+- **Coffee catalogue:** `netlify/functions/catalog-cron.mjs` runs every hour and refreshes one roaster's shop (list in `config/catalog.json`). Data is stored in the Supabase table `catalog` (set up by `supabase/catalog.sql`).
 
 ---
 
@@ -78,16 +79,18 @@ Every change works the same way: **open the file on github.com → pencil icon �
 | Opening headline | `config/content.js` | `hero:` |
 | Section titles (Explore, Journal, Shelf) | `config/content.js` | `sections:` |
 | Login screen words | `config/content.js` | `login:` |
-| Site name shown in the header and tab | `config/content.js` | `brand:` |
+| Site name in the header | `config/content.js` | `brand:` |
+| Title Google and browser tabs show | `config/content.js` `pageTitle:` and the `<title>` / `description` lines at the top of `index.html` | |
+| Coffee Personality names and descriptions | `config/content.js` | `personalities:` |
+| Roasters in the catalogue | `config/catalog.json` | the `roasters` list (Shopify shops only) |
 | “Add past coffees” wording, how many photos at once | `config/content.js` | `onboarding:` |
 | Rating reminder wording, snooze length | `config/content.js` | `reminders:` |
 | Quiz questions and answers | `config/content.js` | `quiz:` |
-| Taste-type names and descriptions | `config/content.js` | `archetypes:` |
 | Which tasting notes count as “fruity”, “chocolate”… | `config/content.js` | `flavours:` |
 | Rating button labels, brew methods | `config/content.js` | `verdicts:`, `brews:` |
 | Freshness windows for the shelf | `config/content.js` | `freshness:` |
 | Colours and fonts | `config/theme.css` | the hex codes |
-| AI model, daily limits, roasters to favour | `config/ai.json` | the values (`identify_bulk` is the allowance for adding past coffees in one go) |
+| AI model, daily limits | `config/ai.json` | the values (`identify_bulk` = adding past coffees in one go, `find` = web searches) |
 | Switch AI to Google Gemini | `config/ai.json` | `"provider": "gemini"`, `"model": "gemini-…"`, and add `GEMINI_API_KEY` in Netlify |
 
 **Photos:** upload a new photo into `photos/` with the same file name to replace one. For phones, also put a smaller copy (about 1800 px on the long side) with the same name into `photos/m/`. To add a story stage, upload the photo and copy one block in the `story:` list.
@@ -103,6 +106,7 @@ Every change works the same way: **open the file on github.com → pencil icon �
 - **See users:** Supabase → Authentication → Users.
 - **See their coffees:** Supabase → Table Editor → `journal`, `shelf`, `profiles`.
 - **See AI use per day:** Table Editor → `ai_usage_by_day`.
+- **See the catalogue:** Table Editor → `catalog` (coffees) and `catalog_roasters` (when each shop was last read, and whether it worked).
 - **Privacy:** every table has rules so a logged-in user can only read and change their own rows. The `ai_usage` table can only be touched by the server function.
 - **Free plan notes:** Supabase’s free plan pauses a project after a week with no activity (restore it from the dashboard), and includes 500 MB of database, which is plenty for thousands of users’ journals.
 

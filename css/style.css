@@ -576,3 +576,5 @@ footer{padding-bottom:110px}
 #signOut{display:inline-flex;align-items:center;gap:6px}
 @media (max-width:520px){#signOut span{display:none}#signOut{padding:8px}}
 .spec-note{margin:2px 0 6px;font-size:13px;color:var(--ink-soft);line-height:1.5}
+.shapers+.actions{margin-top:22px}
+@media (max-width:639px){.cd-gal img,.cd-noimg{aspect-ratio:auto;height:min(78vw,340px);object-fit:contain;background:#141210}.cd-gal.multi img{width:86%}}

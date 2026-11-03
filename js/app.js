@@ -45,7 +45,7 @@ async function init(){
 }
 async function loadUser(){
   document.body.classList.add('signed-in');
-  userName=(me.name||'').split(' ')[0];
+  userName=API.demo?'':(me.name||'').split(' ')[0];
   $('#storeNote').textContent=API.demo?'Demo mode: saved in this browser only':(me.email||'');
   try{
     const v=await API.load();
