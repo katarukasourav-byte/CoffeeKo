@@ -19,3 +19,4 @@ body:not(.signed-in) .store-note{display:none}
 .auth-tabs button{flex:1;border:0;background:transparent;color:var(--ink-soft);font:inherit;font-weight:600;font-size:15px;padding:10px 12px;border-radius:999px;cursor:pointer}
 .auth-tabs button[aria-selected="true"]{background:var(--ink);color:#000}
 #auth{scroll-margin-top:64px}
+#auth{padding-top:max(92px,clamp(48px,8vw,96px))}

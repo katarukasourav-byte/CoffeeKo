@@ -82,7 +82,7 @@ window.SITE = {
     { photo: '12-pour-over', focus: '45% 55%', alt: 'Water poured from a gooseneck kettle into a pour-over dripper on a scale',
       title: 'And then, your cup.',
       text: 'Every coffee you try tells you something about your own taste. Start keeping track.',
-      button: 'Build my coffee profile',
+      button: 'Build my coffee personality',
       credit: 'Andreas Behr', creditUrl: 'https://unsplash.com/photos/black-ceramic-mug-on-brown-wooden-table-qXLReVbjxvg' }
   ],
 
