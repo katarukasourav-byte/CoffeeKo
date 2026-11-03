@@ -32,7 +32,7 @@ function grams(t) { const s = String(t || '').toLowerCase(); let m = s.match(/(?
 function packOf(p) {
   const vs = (p.variants || []).map(v => ({ g: grams(v.title) || grams(p.title), price: Math.round(+v.price * 100) / 100, avail: v.available !== false, ground: /ground|grind|filter|espresso|french|moka|aeropress|pour/i.test(v.title) && !/whole/i.test(v.title) }))
     .filter(v => v.price > 0);
-  if (!vs.length) return {};
+  if (!vs.length) return { price_inr: null, pack_g: null, price_250: null, available: false };
   const whole = vs.filter(v => !v.ground);
   const pool = (whole.length ? whole : vs).sort((a, b) => (a.g || 9999) - (b.g || 9999) || a.price - b.price);
   const v = pool[0];
@@ -80,7 +80,7 @@ export async function syncRoaster(name) {
     const h = hash(raw), id = domain.replace(/^www\./, '') + '/' + p.handle;
     const row = { id, roaster: R.name, name: p.title.trim(), url: `https://${domain}/products/${p.handle}`, image: p.images?.[0]?.src || null,
       images: (p.images || []).slice(0, 4).map(i => i.src), product_type: p.product_type || null, raw, content_hash: h, source: 'shop', currency: R.currency || 'INR', roaster_country: R.country || 'IN', updated_at: new Date().toISOString(), ...packOf(p) };
-    if (prev[id] !== h) { row.extracted = false; row.is_coffee = true; }
+    if (prev[id] !== h) { row.extracted = false; row.is_coffee = true; row.tries = 0; }
     return row;
   });
   // Upsert in two groups so unchanged rows keep their AI-read details
