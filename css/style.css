@@ -607,3 +607,5 @@ footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px}
 @media (max-width:700px){.sheet{padding-bottom:calc(96px + env(safe-area-inset-bottom))}}
 .toast{border-radius:16px;max-width:min(92vw,420px);text-align:center}
 #photos .ph:not(.bean) img{filter:saturate(.66) contrast(1.06) brightness(.74) sepia(.16)}
+input[type=email],input[type=tel],input[type=search].plain{width:100%;border:1px solid #2A2A2A;background:#141414;color:var(--ink);border-radius:12px;padding:11px 13px;font-size:15px;color-scheme:dark}
+.sheet a:not(.btn){color:var(--accent)}

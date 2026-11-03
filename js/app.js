@@ -846,6 +846,7 @@ document.addEventListener('click',e=>{
   const act=a.dataset.act;
   if(a.tagName==='A'&&['mycoffee','coffee'].includes(act))e.preventDefault();
   if(act==='mycoffee'||act==='join')return goMyCoffee();
+  if(act==='contact'){if(a.tagName==='A')e.preventDefault();return openContact(a.dataset.topic);}
   if(act==='coffee'){const p=catById.get(a.dataset.id);if(p)openCoffee(p);return;}
   if(act==='types')return openTypes();
   if(act==='websearch')return webSearch();
@@ -871,12 +872,40 @@ document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.tar
   top.onclick=()=>{const a=document.getElementById('app');scrollTo({top:a.offsetTop,behavior:'smooth'});};
   new MutationObserver(upd).observe(document.body,{attributes:true,attributeFilter:['class']});})();
 initSearch();
+/* Feedback & contact: sent through Netlify Forms, so the owner's email address is never shown.
+   Netlify emails each message to the address set in Netlify → Forms → Form notifications. */
+const TOPICS=[['feedback','Feedback or an idea'],['problem','Something isn’t working'],['coffee','Suggest a coffee or roaster'],['question','A question for the team'],['data','My account or data']];
+function openContact(topic){
+  const signed=document.body.classList.contains('signed-in')&&!API.demo;
+  openSheet(`${head('Feedback & contact')}<h3>Talk to the CoffeeKo team</h3><p class="lead">Tell us what you think, report a problem or ask anything. We reply by email.</p>
+   <form id="ctForm" novalidate>
+   <div class="field"><label for="ctTopic">About</label><select id="ctTopic">${TOPICS.map(([v,l])=>`<option value="${v}" ${v===(topic||'feedback')?'selected':''}>${l}</option>`).join('')}</select></div>
+   <div class="row c2"><div class="field"><label for="ctName">Your name</label><input id="ctName" type="text" autocomplete="name" value="${esc(signed?(me?.name||''):'')}"></div>
+   <div class="field"><label for="ctEmail">Email</label><input id="ctEmail" type="email" autocomplete="email" required value="${esc(signed?(me?.email||''):'')}"></div></div>
+   <div class="field"><label for="ctPhone">Phone <span class="muted">(optional)</span></label><input id="ctPhone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+91"></div>
+   <div class="field"><label for="ctMsg">Message</label><textarea id="ctMsg" rows="5" required placeholder="What’s on your mind?"></textarea></div>
+   <input id="ctCompany" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
+   <p class="muted fine">We use these details only to reply to you. See our <a href="privacy.html" target="_blank" rel="noopener">privacy page</a>.</p>
+   <p class="status err" id="ctErr" role="alert"></p>
+   <div class="sheet-foot"><span></span><button class="btn accent big" type="submit" id="ctSend">Send message</button></div></form>`);
+  $('#ctForm').onsubmit=async ev=>{ev.preventDefault();const err=$('#ctErr');err.textContent='';
+    const email=$('#ctEmail').value.trim(),msg=$('#ctMsg').value.trim(),phone=$('#ctPhone').value.trim();
+    if(!/^\S+@\S+\.\S+$/.test(email)){err.textContent='Enter a valid email so we can reply.';return;}
+    if(phone&&!/^[+\d][\d\s-]{6,16}$/.test(phone)){err.textContent='That phone number doesn’t look right. Leave it empty if you prefer.';return;}
+    if(msg.length<3){err.textContent='Write a short message first.';return;}
+    const b=$('#ctSend');b.disabled=true;b.textContent='Sending…';
+    const body=new URLSearchParams({'form-name':'contact',name:$('#ctName').value.trim(),email,phone,topic:TOPICS.find(t=>t[0]===$('#ctTopic').value)[1],message:msg,signed_in_as:signed?(me?.email||''):'',page:location.pathname+location.hash,company:$('#ctCompany').value});
+    try{const r=await fetch('/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()});if(!r.ok)throw new Error(r.status);
+      sheet.innerHTML=`${head('Feedback & contact')}<div class="mm-done"><h3>Thank you.</h3><p class="lead">Your message is with the CoffeeKo team. We’ll reply to ${esc(email)}.</p><div class="actions"><button class="btn accent" data-close>Done</button></div></div>`;}
+    catch(e){err.textContent='Couldn’t send just now. Check your connection and try again.';b.disabled=false;b.textContent='Send message';}};
+}
+if(location.hash==='#contact')setTimeout(()=>openContact(),400);
 /* Account sheet: sign out, privacy, help, delete account */
 function openAccount(){
   openSheet(`${head('Your account')}<h3>Your account</h3><p class="lead">${esc(me?.email||'')}</p>
    <div class="acct"><button class="btn ghost" id="acOut">Sign out</button>
    <a class="btn quiet" href="privacy.html" target="_blank" rel="noopener">Privacy and your data</a>
-   <a class="btn quiet" href="mailto:hello@coffeeko.in?subject=CoffeeKo%20help">Help: hello@coffeeko.in</a></div>
+   <button class="btn quiet" data-act="contact">Feedback and help</button></div>
    <details class="more danger-zone"><summary>Delete my account</summary>
    <p class="muted">This permanently deletes your account, Coffee Personality, journal, shelf and photos. It can’t be undone.</p>
    <div class="field"><label for="acConfirm">Type DELETE to confirm</label><input id="acConfirm" type="text" autocomplete="off"></div>
