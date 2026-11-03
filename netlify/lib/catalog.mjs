@@ -26,7 +26,7 @@ async function db(path, opts = {}) {
 
 const strip = h => String(h || '').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#39;|&rsquo;/g, '’').replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim();
 function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); }
-function grams(t) { const s = String(t || '').toLowerCase(); let m = s.match(/(?<![a-z0-9#.])(\d+(?:\.\d+)?)\s*kgs?\b/); if (m) return Math.round(+m[1] * 1000); m = s.match(/(?<![a-z0-9#.])(\d{2,4})\s*(?:g|gm|gms|grams?)\b/); return m && +m[1] >= 30 ? +m[1] : null; }
+function grams(t) { const s = String(t || '').toLowerCase(); let m = s.match(/(?<![a-z0-9#.])(\d+(?:\.\d+)?)\s*kgs?\b/); if (m) return Math.round(+m[1] * 1000); m = s.match(/(?<![a-z0-9#.])(\d+(?:\.\d+)?)\s*(?:lbs?|pounds?)\b/); if (m) return Math.round(+m[1] * 453.6); m = s.match(/(?<![a-z0-9#.])(\d+(?:\.\d+)?)\s*(?:oz|ounces?)\b/); if (m) return Math.round(+m[1] * 28.35); m = s.match(/(?<![a-z0-9#.])(\d{2,4})\s*(?:g|gm|gms|grams?)\b/); return m && +m[1] >= 30 ? +m[1] : null; }
 
 /* Pick the pack to show: smallest whole-bean size, otherwise the smallest size. */
 function packOf(p) {
