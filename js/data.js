@@ -90,7 +90,7 @@ const API = {
     if (!hasKeys) return [];
     const K = 'ck-catalog-v1';
     try { const c = JSON.parse(sessionStorage.getItem(K) || 'null'); if (c && Date.now() - c.at < 30 * 60e3) return c.rows; } catch (e) {}
-    const cols = 'id,roaster,name,url,image,images,price_inr,pack_g,price_250,currency,available,origin,region,estate,altitude,variety,process,process_detail,roast_level,notes,acidity,body,sweetness,bitterness,grade,blend,summary,source,updated_at';
+    const cols = 'id,roaster,name,url,image,images,price_inr,pack_g,price_250,currency,roaster_country,available,origin,region,estate,altitude,variety,process,process_detail,roast_level,notes,acidity,body,sweetness,bitterness,grade,blend,summary,source,updated_at';
     const rows = [];
     for (let from = 0; from < 3000; from += 1000) {
       const r = await fetch(`${S.supabaseUrl}/rest/v1/catalog?select=${cols}&is_coffee=eq.true&extracted=eq.true&order=roaster,name`, { headers: { apikey: S.supabaseAnonKey, Authorization: 'Bearer ' + S.supabaseAnonKey, Range: `${from}-${from + 999}` } });

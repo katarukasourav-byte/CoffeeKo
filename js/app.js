@@ -60,7 +60,12 @@ async function loadCatalog(force){
   catch(e){console.warn(e);state.catState='error';}
   renderExplore();renderJournal();
 }
-const fromCat=r=>({id:r.id,catalogId:r.id,name:r.name,roaster:r.roaster,origin:r.origin||'',region:r.region||'',estate:r.estate||'',altitude:r.altitude||'',variety:r.variety||'',process:r.process||'',processDetail:r.process_detail||'',grade:r.grade||'',blend:r.blend,roastLevel:r.roast_level||'',notes:r.notes||[],tastingNotes:r.notes||[],acidity:r.acidity,body:r.body,sweetness:r.sweetness,bitterness:r.bitterness,summary:r.summary||'',url:r.url,image:r.image,images:(r.images&&r.images.length?r.images:[r.image]).filter(Boolean),price:r.price_inr,currency:r.currency||'INR',packG:r.pack_g,price250:r.price_250,available:r.available!==false,source:r.source,updatedAt:r.updated_at});
+/* The visitor's local currency (from browser region / time zone), used to show nearby shops first */
+const EURO=['AT','BE','CY','DE','EE','ES','FI','FR','GR','HR','IE','IT','LT','LU','LV','MT','NL','PT','SI','SK'];
+const LOCAL_CUR=(()=>{const r=((navigator.language||'').split('-')[1]||'').toUpperCase();const tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';
+  const m={IN:'INR',GB:'GBP',US:'USD',DK:'DKK',AE:'AED',AU:'AUD',CA:'CAD',SG:'SGD',JP:'JPY',SE:'SEK',NO:'NOK',CH:'CHF',NZ:'NZD'};
+  if(m[r])return m[r];if(EURO.includes(r))return'EUR';if(/Kolkata|Calcutta/.test(tz))return'INR';if(/^Europe\/London/.test(tz))return'GBP';if(/^Europe\//.test(tz))return'EUR';if(/^America\/(New_York|Chicago|Denver|Los_Angeles|Phoenix)/.test(tz))return'USD';if(/^Australia\//.test(tz))return'AUD';if(/^Asia\/Dubai/.test(tz))return'AED';return null;})();
+const fromCat=r=>({id:r.id,catalogId:r.id,name:r.name,roaster:r.roaster,origin:r.origin||'',region:r.region||'',estate:r.estate||'',altitude:r.altitude||'',variety:r.variety||'',process:r.process||'',processDetail:r.process_detail||'',grade:r.grade||'',blend:r.blend,roastLevel:r.roast_level||'',notes:r.notes||[],tastingNotes:r.notes||[],acidity:r.acidity,body:r.body,sweetness:r.sweetness,bitterness:r.bitterness,summary:r.summary||'',url:r.url,image:r.image,images:(r.images&&r.images.length?r.images:[r.image]).filter(Boolean),price:r.price_inr!=null?+r.price_inr:null,currency:r.currency||'INR',roasterCountry:r.roaster_country||'',packG:r.pack_g,price250:r.price_250!=null?+r.price_250:null,available:r.available!==false,source:r.source,updatedAt:r.updated_at});
 
 /* =================== taste model =================== */
 const FAM=Object.fromEntries(Object.entries(SITE.flavours).map(([k,v])=>[k,{l:v.label,w:v.words}]));
@@ -244,13 +249,14 @@ function diversify(L){const out=[],rest=L.slice();while(rest.length){let i=rest.
 function exploreList(){
   const hidden=new Set(state.settings.hidden||[]);
   let L=state.cat.filter(p=>p.available&&!hidden.has(keyOf(p))&&!hidden.has(p.id)).map(p=>({p,m:match(p)}));
-  L.sort((a,b)=>(b.m?.score||0)-(a.m?.score||0)||(a.p.price250||9e9)-(b.p.price250||9e9));
+  const near=p=>LOCAL_CUR&&p.currency===LOCAL_CUR?8:0;   /* shops in your own currency rank a little higher */
+  L.sort((a,b)=>((b.m?.score||0)+near(b.p))-((a.m?.score||0)+near(a.p))||(a.p.price250||9e9)-(b.p.price250||9e9));
   const f=xf;
   L=L.filter(({p,m})=>{const r=ROASTN(p.roastLevel),fm=famsOf(p.notes),pr=(p.process||'').toLowerCase(),o=(p.origin||'').toLowerCase();
     if(f==='top')return m&&m.score>=75;if(f==='light')return r==='light';if(f==='medium')return r==='medium';if(f==='dark')return r==='medium-dark'||r==='dark';
     if(f==='fruity')return fm.has('fruity')||fm.has('citrus');if(f==='chocolate')return fm.has('chocolate')||fm.has('nutty');
     if(f==='natural')return /natural|anaerobic|carbonic/.test(pr);if(f==='washed')return /washed/.test(pr);
-    if(f==='single')return p.blend===false;if(f==='blend')return p.blend===true;if(f==='budget')return p.price250&&p.price250<=valueLine(p.currency);return true;});
+    if(f==='single')return p.blend===false;if(f==='blend')return p.blend===true;if(f==='local')return p.currency===LOCAL_CUR;if(f==='budget')return p.price250&&p.price250<=valueLine(p.currency);return true;});
   return diversify(L).map(x=>Object.assign(x,{saved:!!inJournal(x.p)}));
 }
 function xcard({p,m,saved}){
@@ -277,7 +283,8 @@ function renderExplore(){
     :xAll?`<div class="xgrid">${XL.map(xcard).join('')}</div>`
     :`<div class="rail" tabindex="0" aria-label="Coffee matches">${XL.slice(0,LIM).map(xcard).join('')}${XL.length>LIM?`<button class="xcard xmore" data-act="xall"><b>See all ${XL.length}</b><span class="muted">coffees in this list</span></button>`:''}</div>`;
   const roasters=new Set(state.cat.map(c=>c.roaster)).size;
-  el.innerHTML=`<div class="filters" role="group" aria-label="Filter">${XF.map(([k,l])=>`<button class="fchip" data-xf="${k}" aria-pressed="${xf===k}">${l}</button>`).join('')}</div>
+  const XFs=LOCAL_CUR&&state.cat.some(c=>c.currency===LOCAL_CUR)&&new Set(state.cat.map(c=>c.currency)).size>1?[XF[0],['local','Near you'],...XF.slice(1)]:XF;
+  el.innerHTML=`<div class="filters" role="group" aria-label="Filter">${XFs.map(([k,l])=>`<button class="fchip" data-xf="${k}" aria-pressed="${xf===k}">${l}</button>`).join('')}</div>
    ${body}
    ${xAll&&XL.length?`<button class="btn ghost small" data-act="xall">Show fewer</button>`:''}
    ${state.cat.length?`<p class="muted fine">${state.cat.length} coffees from ${roasters} roasters. Prices, photos and links come from each roaster’s shop and are refreshed daily. Matches update every time you rate a coffee.</p>`:''}`;

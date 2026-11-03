@@ -30,13 +30,13 @@ function grams(t) { const s = String(t || '').toLowerCase(); let m = s.match(/(?
 
 /* Pick the pack to show: smallest whole-bean size, otherwise the smallest size. */
 function packOf(p) {
-  const vs = (p.variants || []).map(v => ({ g: grams(v.title) || grams(p.title), price: Math.round(+v.price), avail: v.available !== false, ground: /ground|grind|filter|espresso|french|moka|aeropress|pour/i.test(v.title) && !/whole/i.test(v.title) }))
+  const vs = (p.variants || []).map(v => ({ g: grams(v.title) || grams(p.title), price: Math.round(+v.price * 100) / 100, avail: v.available !== false, ground: /ground|grind|filter|espresso|french|moka|aeropress|pour/i.test(v.title) && !/whole/i.test(v.title) }))
     .filter(v => v.price > 0);
   if (!vs.length) return {};
   const whole = vs.filter(v => !v.ground);
   const pool = (whole.length ? whole : vs).sort((a, b) => (a.g || 9999) - (b.g || 9999) || a.price - b.price);
   const v = pool[0];
-  return { price_inr: v.price, pack_g: v.g, price_250: v.g ? Math.round(v.price * 250 / v.g) : null, available: vs.some(x => x.avail) };
+  return { price_inr: v.price, pack_g: v.g, price_250: v.g ? Math.round(v.price * 250 / v.g * 100) / 100 : null, available: vs.some(x => x.avail) };
 }
 
 async function fetchShop(domain) {
@@ -76,10 +76,10 @@ export async function syncRoaster(name) {
   const existing = await db(`catalog?select=id,content_hash&roaster=eq.${encodeURIComponent(R.name)}`);
   const prev = Object.fromEntries(existing.map(x => [x.id, x.content_hash]));
   const rows = coffees.map(p => {
-    const raw = [`Title: ${p.title}`, `Type: ${p.product_type || ''}`, `Tags: ${(p.tags || []).join(', ')}`, `Sizes: ${(p.variants || []).map(v => v.title).slice(0, 8).join(' | ')}`, `Description: ${strip(p.body_html).slice(0, 1800)}`].join('\n');
+    const raw = [`Roaster: ${R.name}, based in ${R.country || 'IN'}`, `Title: ${p.title}`, `Type: ${p.product_type || ''}`, `Tags: ${(p.tags || []).join(', ')}`, `Sizes: ${(p.variants || []).map(v => v.title).slice(0, 8).join(' | ')}`, `Description: ${strip(p.body_html).slice(0, 1800)}`].join('\n');
     const h = hash(raw), id = domain.replace(/^www\./, '') + '/' + p.handle;
     const row = { id, roaster: R.name, name: p.title.trim(), url: `https://${domain}/products/${p.handle}`, image: p.images?.[0]?.src || null,
-      images: (p.images || []).slice(0, 4).map(i => i.src), product_type: p.product_type || null, raw, content_hash: h, source: 'shop', currency: R.currency || 'INR', updated_at: new Date().toISOString(), ...packOf(p) };
+      images: (p.images || []).slice(0, 4).map(i => i.src), product_type: p.product_type || null, raw, content_hash: h, source: 'shop', currency: R.currency || 'INR', roaster_country: R.country || 'IN', updated_at: new Date().toISOString(), ...packOf(p) };
     if (prev[id] !== h) { row.extracted = false; row.is_coffee = true; }
     return row;
   });
@@ -94,10 +94,10 @@ export async function syncRoaster(name) {
 }
 
 /* ---------- 2. AI reads descriptions ---------- */
-const PROMPT = items => `You are cataloguing specialty coffee sold online in India. For each product below, read ONLY the text given.
+const PROMPT = items => `You are cataloguing specialty coffee sold online by roasters around the world. For each product below, read ONLY the text given.
 Rules:
 - isCoffee: true only for roasted coffee sold as beans or ground coffee in a bag (single origins and blends). false for equipment, gift boxes, subscriptions, capsules, drip bags, cold brew, tea, merchandise, sample sets of many coffees.
-- origin (country), region, estate (farm/estate/cooperative), altitude, variety (e.g. SL795, Catuai), grade (e.g. AA, Plantation A, PB, Specialty 84+), roastLevel: fill ONLY if the text states or clearly implies it; otherwise null. Never guess an estate, altitude or variety. These roasters are Indian: when the coffee comes from a named Indian estate or region (Chikmagalur, Coorg, Araku, Baba Budangiri, Nilgiris, Wayanad, BR Hills, Malabar…) and no other country is named, origin is "India".
+- origin (country), region, estate (farm/estate/cooperative), altitude, variety (e.g. SL795, Catuai), grade (e.g. AA, Plantation A, PB, Specialty 84+), roastLevel: fill ONLY if the text states or clearly implies it; otherwise null. Never guess an estate, altitude or variety. When the roaster is based in IN (India) and the coffee comes from a named Indian estate or region (Chikmagalur, Coorg, Araku, Baba Budangiri, Nilgiris, Wayanad, BR Hills, Malabar…) and no other country is named, origin is "India". For roasters elsewhere, never assume the origin is the roaster's own country.
 - process: the short name only, at most 3 words (e.g. "Washed", "Natural", "Honey", "Anaerobic natural", "Carbonic maceration", "Monsooned", "Yeast fermented", "Co-ferment"). processDetail: the longer description if the text gives one (fermentation hours, drying), else null.
 - notes: up to 5 tasting notes as written.
 - acidity, body, sweetness, bitterness: 1–5. Use any stated scores (tags like "acidity-medium" = 3, "high" = 4, "low" = 2); otherwise estimate from the notes and roast.
