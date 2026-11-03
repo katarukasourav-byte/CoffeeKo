@@ -102,12 +102,13 @@ Rules:
 - acidity, body, sweetness, bitterness: 1–5. Use any stated scores (tags like "acidity-medium" = 3, "high" = 4, "low" = 2); otherwise estimate from the notes and roast.
 - blend: true if it is a blend of several coffees.
 - summary: one plain sentence (max 25 words) describing how it tastes. No marketing words.
-Return ONLY JSON: {"items":[{"id":string,"isCoffee":boolean,"origin":string|null,"region":string|null,"estate":string|null,"altitude":string|null,"variety":string|null,"process":string|null,"grade":string|null,"roastLevel":"light"|"medium-light"|"medium"|"medium-dark"|"dark"|null,"notes":[string],"acidity":1-5,"body":1-5,"sweetness":1-5,"bitterness":1-5,"blend":boolean,"summary":string}]}
+Output format: one JSON object per product, each on its own single line, nothing else (no array, no code fences, no commentary). Use double quotes and escape any double quote inside text. Each line:
+{"id":string,"isCoffee":boolean,"origin":string|null,"region":string|null,"estate":string|null,"altitude":string|null,"variety":string|null,"process":string|null,"grade":string|null,"roastLevel":"light"|"medium-light"|"medium"|"medium-dark"|"dark"|null,"notes":[string],"acidity":1-5,"body":1-5,"sweetness":1-5,"bitterness":1-5,"blend":boolean,"summary":string}
 
 ${items.map(i => `### id: ${i.id}\n${i.raw}`).join('\n\n')}`;
 
 export async function extractBatch(n) {
-  const todo = await db(`catalog?select=id,raw&extracted=eq.false&is_coffee=eq.true&raw=not.is.null&limit=${Math.max(1, Math.min(12, n || cfg.extractPerRun || 6))}`);
+  const todo = await db(`catalog?select=id,raw,tries&extracted=eq.false&is_coffee=eq.true&raw=not.is.null&limit=${Math.max(1, Math.min(12, n || cfg.extractPerRun || 6))}`);
   if (!todo.length) return { extracted: 0, left: 0 };
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -118,8 +119,11 @@ export async function extractBatch(n) {
   const out = await r.json();
   if (!r.ok) throw new Error('Anthropic: ' + (out.error?.message || r.status));
   const text = (out.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-  const m = text.match(/\{[\s\S]*\}/); if (!m) throw new Error('No JSON from AI');
-  const items = JSON.parse(m[0]).items || [];
+  const items = [];
+  for (const line of text.split('\n')) { const l = line.trim().replace(/,$/, ''); if (!l.startsWith('{')) continue; try { items.push(JSON.parse(l)); } catch {} }
+  // A product the AI can't read after 3 tries is hidden rather than retried for ever
+  const missed = todo.filter(t => !items.some(i => i.id === t.id));
+  for (const t of missed) { const n = (t.tries || 0) + 1; await db(`catalog?id=eq.${encodeURIComponent(t.id)}`, { method: 'PATCH', body: JSON.stringify(n >= 3 ? { tries: n, extracted: true, is_coffee: false } : { tries: n }) }); }
   const cl = v => v == null || isNaN(+v) ? null : Math.min(5, Math.max(1, Math.round(+v)));
   const ROAST = ['light', 'medium-light', 'medium', 'medium-dark', 'dark'];
   for (const it of items) {
