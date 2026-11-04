@@ -614,3 +614,9 @@ input[type=email],input[type=tel],input[type=search].plain{width:100%;border:1px
 .x-ring{display:flex;line-height:0}
 .x-lbl{font-size:14px;font-weight:650}
 .xr-m{white-space:nowrap;font-size:13px}
+/* Floating buttons kept clear of the "Powered by Netlify" badge (bottom right):
+   centred on desktop, bottom left on phones */
+.fabs{right:auto;left:50%;transform:translate(-50%,10px);flex-direction:row;align-items:center}
+.fabs.on{transform:translate(-50%,0)}
+@media (max-width:700px){.fabs{left:clamp(14px,3vw,28px);transform:translateY(10px);flex-direction:column;align-items:flex-start}.fabs.on{transform:none}}
+@media (max-width:700px){.toast{bottom:150px}}
