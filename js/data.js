@@ -36,6 +36,7 @@ const API = {
     const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name }, emailRedirectTo: location.origin + location.pathname + '#profile' } });
     fail(error); return { needsConfirm: !data.session };
   },
+  async resendConfirm(email) { const { error } = await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: location.origin + location.pathname + '#profile' } }); fail(error); },
   async signIn(email, password) { const { error } = await sb.auth.signInWithPassword({ email, password }); fail(error); },
   async signOut() { if (sb) await sb.auth.signOut(); },
   async resetPassword(email) { const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname + '#reset' }); fail(error); },

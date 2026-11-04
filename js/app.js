@@ -823,12 +823,15 @@ function showAuth(mode){
     newpassword:'<div class="field"><label for="aPass">Password</label><input id="aPass" type="password" autocomplete="new-password" minlength="8" required><span class="muted">At least 8 characters.</span></div>'
   };
   box.innerHTML=`<div class="auth-wrap"><div class="auth-intro"><span class="kicker">${esc(SITE.brand)}</span><h2>${esc(L.title||'')}</h2><p>${esc(L.sub||'')}</p></div>
-   <form class="auth-card" id="authForm" novalidate>${authMode==='signin'||authMode==='signup'?`<div class="auth-tabs" role="tablist"><button type="button" role="tab" data-auth="signin" aria-selected="${authMode==='signin'}">Sign in</button><button type="button" role="tab" data-auth="signup" aria-selected="${authMode==='signup'}">Create account</button></div>`:''}<h3>${F.h}</h3>${authMode==='sent'?`<p class="muted">${esc(box.dataset.msg||'')}</p>`:''}
+   <form class="auth-card" id="authForm" novalidate data-x="1">${authMode==='signin'||authMode==='signup'?`<div class="auth-tabs" role="tablist"><button type="button" role="tab" data-auth="signin" aria-selected="${authMode==='signin'}">Sign in</button><button type="button" role="tab" data-auth="signup" aria-selected="${authMode==='signup'}">Create account</button></div>`:''}<h3>${F.h}</h3>${authMode==='sent'?`<p class="muted">${esc(box.dataset.msg||'')}</p>
+     <div class="spamtip"><b>Not in your inbox after a minute?</b> Check your <b>Spam</b> or <b>Promotions</b> folder. Yahoo, Outlook and Hotmail often file new senders there. If you find it, mark it “Not spam” so the next emails arrive normally.</div>
+     ${box.dataset.resend?`<button class="btn ghost" type="button" id="aResend">Resend the email</button><p class="status" id="aResendMsg"></p>`:''}`:''}
    ${F.fields.map(f=>field[f]).join('')}
    <p class="status err" id="aErr" role="alert"></p>
    ${F.btn?`<button class="btn accent big" style="width:100%" type="submit">${F.btn}</button>`:''}
    <div class="auth-alt">${F.alt}</div>${authMode==='signup'?'<p class="muted fine" style="margin-top:16px">By creating an account you agree to how we use your data, explained in our <a href="privacy.html" target="_blank" rel="noopener">privacy page</a>.</p>':''}</form></div>`;
   box.querySelectorAll('[data-auth]').forEach(b=>b.onclick=e=>{e.preventDefault();box.dataset.touched=1;showAuth(b.dataset.auth);});
+  const rs=$('#aResend');if(rs)rs.onclick=()=>resendConfirm(rs,$('#aResendMsg'),box.dataset.resend);
   const f=$('#authForm');
   f.onsubmit=async e=>{
     e.preventDefault();const err=$('#aErr');err.textContent='';
@@ -839,15 +842,22 @@ function showAuth(mode){
     const btn=f.querySelector('[type=submit]');btn.disabled=true;
     try{
       if(authMode==='signin'){await API.signIn(email,pass);me=await API.currentUser();box.innerHTML='';await loadUser();}
-      else if(authMode==='signup'){const r=await API.signUp(email,pass,name);if(r.needsConfirm){box.dataset.msg=`We’ve sent a confirmation link to ${email}. Open it, then sign in.`;showAuth('sent');}else{me=await API.currentUser();box.innerHTML='';await loadUser();}}
-      else if(authMode==='forgot'){await API.resetPassword(email);box.dataset.msg=`If an account exists for ${email}, a reset link is on its way.`;showAuth('sent');}
+      else if(authMode==='signup'){const r=await API.signUp(email,pass,name);if(r.needsConfirm){box.dataset.msg=`We’ve sent a confirmation link to ${email}. Open it, then sign in.`;box.dataset.resend=email;showAuth('sent');}else{me=await API.currentUser();box.innerHTML='';await loadUser();}}
+      else if(authMode==='forgot'){await API.resetPassword(email);box.dataset.msg=`If an account exists for ${email}, a reset link is on its way.`;delete box.dataset.resend;showAuth('sent');}
       else if(authMode==='newpass'){await API.updatePassword(pass);history.replaceState(null,'',location.pathname+'#profile');me=await API.currentUser();box.innerHTML='';toast('Password updated');await loadUser();}
     }catch(x){
       const m=String(x.message||'');
-      err.textContent=/invalid login/i.test(m)?'That email and password don’t match.':/already registered/i.test(m)?'An account with this email already exists. Sign in instead.':/not confirmed/i.test(m)?'Confirm your email first: check your inbox for the link.':m||'Something went wrong. Try again.';
+      err.textContent=/invalid login/i.test(m)?'That email and password don’t match.':/already registered/i.test(m)?'An account with this email already exists. Sign in instead.':/not confirmed/i.test(m)?'Confirm your email first. Check your inbox, and your Spam folder.':m||'Something went wrong. Try again.';
       btn.disabled=false;
+      if(/not confirmed/i.test(m)&&email){err.insertAdjacentHTML('afterend','<button class="btn ghost small" type="button" id="aResend2">Resend confirmation email</button><p class="status" id="aResendMsg2"></p>');const b2=$('#aResend2');b2.onclick=()=>resendConfirm(b2,$('#aResendMsg2'),email);}
     }
   };
+}
+/* Resend a sign-up confirmation; Supabase allows one about every minute */
+async function resendConfirm(btn,msg,email){
+  if(!email)return;btn.disabled=true;msg.classList.remove('err');msg.textContent='Sending…';
+  try{await API.resendConfirm(email);msg.textContent=`Sent again to ${email}. Check Spam too.`;let t=60;const iv=setInterval(()=>{t--;btn.textContent=t>0?`Resend again in ${t}s`:'Resend the email';if(t<=0){clearInterval(iv);btn.disabled=false;}},1000);}
+  catch(e){msg.classList.add('err');msg.textContent=/rate|seconds|security/i.test(e.message||'')?'Please wait a minute before asking again.':'Couldn’t resend just now. Try again in a minute.';btn.disabled=false;}
 }
 
 /* =================== global actions =================== */
