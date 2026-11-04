@@ -65,6 +65,8 @@ const EURO=['AT','BE','CY','DE','EE','ES','FI','FR','GR','HR','IE','IT','LT','LU
 const LOCAL_CUR=(()=>{const r=((navigator.language||'').split('-')[1]||'').toUpperCase();const tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';
   const m={IN:'INR',GB:'GBP',US:'USD',DK:'DKK',AE:'AED',AU:'AUD',CA:'CAD',SG:'SGD',JP:'JPY',SE:'SEK',NO:'NOK',CH:'CHF',NZ:'NZD'};
   if(m[r])return m[r];if(EURO.includes(r))return'EUR';if(/Kolkata|Calcutta/.test(tz))return'INR';if(/^Europe\/London/.test(tz))return'GBP';if(/^Europe\//.test(tz))return'EUR';if(/^America\/(New_York|Chicago|Denver|Los_Angeles|Phoenix)/.test(tz))return'USD';if(/^Australia\//.test(tz))return'AUD';if(/^Asia\/Dubai/.test(tz))return'AED';return null;})();
+let _rn;try{_rn=new Intl.DisplayNames(['en'],{type:'region'});}catch(e){}
+const countryName=c=>{try{return _rn?_rn.of(c):c;}catch(e){return c;}};
 const fromCat=r=>({id:r.id,catalogId:r.id,name:r.name,roaster:r.roaster,origin:r.origin||'',region:r.region||'',estate:r.estate||'',altitude:r.altitude||'',variety:r.variety||'',process:r.process||'',processDetail:r.process_detail||'',grade:r.grade||'',blend:r.blend,roastLevel:r.roast_level||'',notes:r.notes||[],tastingNotes:r.notes||[],acidity:r.acidity,body:r.body,sweetness:r.sweetness,bitterness:r.bitterness,summary:r.summary||'',url:r.url,image:r.image,images:(r.images&&r.images.length?r.images:[r.image]).filter(Boolean),price:r.price_inr!=null?+r.price_inr:null,currency:r.currency||'INR',roasterCountry:r.roaster_country||'',packG:r.pack_g,price250:r.price_250!=null?+r.price_250:null,available:r.available!==false,source:r.source,updatedAt:r.updated_at});
 
 /* =================== taste model =================== */
@@ -249,21 +251,25 @@ function diversify(L){const out=[],rest=L.slice();while(rest.length){let i=rest.
 function exploreList(){
   const hidden=new Set(state.settings.hidden||[]);
   let L=state.cat.filter(p=>p.available&&!hidden.has(keyOf(p))&&!hidden.has(p.id)).map(p=>({p,m:match(p)}));
-  const near=p=>LOCAL_CUR&&p.currency===LOCAL_CUR?8:0;   /* shops in your own currency rank a little higher */
+  const near=p=>LOCAL_CUR&&p.currency===LOCAL_CUR?3:0;   /* shops in your own currency rank a little higher */
   L.sort((a,b)=>((b.m?.score||0)+near(b.p))-((a.m?.score||0)+near(a.p))||(a.p.price250||9e9)-(b.p.price250||9e9));
   const f=xf;
   L=L.filter(({p,m})=>{const r=ROASTN(p.roastLevel),fm=famsOf(p.notes),pr=(p.process||'').toLowerCase(),o=(p.origin||'').toLowerCase();
     if(f==='top')return m&&m.score>=75;if(f==='light')return r==='light';if(f==='medium')return r==='medium';if(f==='dark')return r==='medium-dark'||r==='dark';
     if(f==='fruity')return fm.has('fruity')||fm.has('citrus');if(f==='chocolate')return fm.has('chocolate')||fm.has('nutty');
     if(f==='natural')return /natural|anaerobic|carbonic/.test(pr);if(f==='washed')return /washed/.test(pr);
-    if(f==='single')return p.blend===false;if(f==='blend')return p.blend===true;if(f==='local')return p.currency===LOCAL_CUR;if(f==='budget')return p.price250&&p.price250<=valueLine(p.currency);return true;});
-  return diversify(L).map(x=>Object.assign(x,{saved:!!inJournal(x.p)}));
+    if(f==='single')return p.blend===false;if(f==='blend')return p.blend===true;if(f==='local')return p.currency===LOCAL_CUR;if(f==='abroad')return !!LOCAL_CUR&&p.currency!==LOCAL_CUR;if(f==='budget')return p.price250&&p.price250<=valueLine(p.currency);return true;});
+  L=diversify(L);
+  /* In "All" and "Top matches", mix in roasters from other countries: about one card in four */
+  if(LOCAL_CUR&&(f==='all'||f==='top')){const home=L.filter(x=>x.p.currency===LOCAL_CUR),away=L.filter(x=>x.p.currency!==LOCAL_CUR);
+    if(home.length&&away.length){const out=[];let i=0,j=0;while(i<home.length||j<away.length){for(let k=0;k<3&&i<home.length;k++)out.push(home[i++]);if(j<away.length)out.push(away[j++]);if(i>=home.length)while(j<away.length)out.push(away[j++]);}L=out;}}
+  return L.map(x=>Object.assign(x,{saved:!!inJournal(x.p)}));
 }
 function xcard({p,m,saved}){
   return`<article class="xcard" data-act="coffee" data-id="${esc(p.id)}" tabindex="0" role="button" aria-label="${esc(p.name)}, ${esc(p.roaster)}. Open details">
-    <div class="x-img">${p.image?`<img src="${esc(imgW(p.image,480))}" alt="" loading="lazy" decoding="async">`:beanIcon()}${m?`<span class="x-ring">${ring(m.score,58,m.cls)}</span>`:''}${saved?'<span class="x-saved">Saved</span>':''}</div>
-    <div class="x-body">${m?`<span class="x-lbl m-${m.cls}">${m.lbl}</span>`:''}
-      <h4>${esc(p.name)}</h4><div class="by">${esc(p.roaster)}</div>
+    <div class="x-img">${p.image?`<img src="${esc(imgW(p.image,480))}" alt="" loading="lazy" decoding="async">`:beanIcon()}${saved?'<span class="x-saved">Saved</span>':''}</div>
+    <div class="x-body">${m?`<span class="x-lbl m-${m.cls}">${m.lbl} · ${m.score}%</span>`:''}
+      <h4>${esc(p.name)}</h4><div class="by">${esc(p.roaster)}${p.roasterCountry?' · '+esc(countryName(p.roasterCountry)):''}</div>
       <div class="x-origin"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M12 21s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="9" r="2.4" fill="currentColor"/></svg>${esc(originLine(p))}</div>
       <div class="chips">${p.roastLevel?`<span class="chip static">${esc(cap(p.roastLevel))}</span>`:''}${p.process?`<span class="chip static">${esc(p.process)}</span>`:''}${(p.notes||[]).slice(0,2).map(n=>`<span class="chip static">${esc(n)}</span>`).join('')}</div>
       <div class="x-foot"><span class="price">${esc(priceText(p))}</span><span class="x-more">Details</span></div></div>
@@ -283,7 +289,7 @@ function renderExplore(){
     :xAll?`<div class="xgrid">${XL.map(xcard).join('')}</div>`
     :`<div class="rail" tabindex="0" aria-label="Coffee matches">${XL.slice(0,LIM).map(xcard).join('')}${XL.length>LIM?`<button class="xcard xmore" data-act="xall"><b>See all ${XL.length}</b><span class="muted">coffees in this list</span></button>`:''}</div>`;
   const roasters=new Set(state.cat.map(c=>c.roaster)).size;
-  const XFs=LOCAL_CUR&&state.cat.some(c=>c.currency===LOCAL_CUR)&&new Set(state.cat.map(c=>c.currency)).size>1?[XF[0],['local','Near you'],...XF.slice(1)]:XF;
+  const XFs=LOCAL_CUR&&state.cat.some(c=>c.currency===LOCAL_CUR)&&state.cat.some(c=>c.currency!==LOCAL_CUR)?[XF[0],['local','Near you'],['abroad','International'],...XF.slice(1)]:XF;
   el.innerHTML=`<div class="filters" role="group" aria-label="Filter">${XFs.map(([k,l])=>`<button class="fchip" data-xf="${k}" aria-pressed="${xf===k}">${l}</button>`).join('')}</div>
    ${body}
    ${xAll&&XL.length?`<button class="btn ghost small" data-act="xall">Show fewer</button>`:''}
@@ -305,7 +311,7 @@ function openCoffee(p){
   openSheet(`${head('Coffee details')}
    <div class="cd">
     <div class="cd-gal${imgs.length>1?' multi':''}">${imgs.length?imgs.map((u,i)=>`<img src="${esc(imgW(u,900))}" alt="${i?'':'Packaging of '+esc(p.name)}" ${i?'loading="lazy"':''}>`).join(''):`<div class="cd-noimg">${beanIcon()}</div>`}</div>
-    <div class="cd-head"><span class="kicker">${esc(p.roaster)}</span><h3>${esc(p.name)}</h3>
+    <div class="cd-head"><span class="kicker">${esc(p.roaster)}${p.roasterCountry?' · '+esc(countryName(p.roasterCountry)):''}</span><h3>${esc(p.name)}</h3>
       ${p.summary?`<p class="cd-sum">${esc(p.summary)}</p>`:''}
       <div class="cd-price"><b>${esc(priceText(p))}</b>${p.price250&&p.packG&&p.packG!==250?`<span class="muted">≈ ${money(p.price250,p.currency)} per 250 g</span>`:''}${p.available===false?'<span class="vtag v-dislike">Out of stock</span>':''}</div>
       <div class="actions">${p.url?`<a class="btn accent" href="${esc(p.url)}" target="_blank" rel="noopener">Buy from ${esc(p.roaster)} ↗</a>`:''}<a class="btn ghost small" href="${amazon(p)}" target="_blank" rel="noopener">Search on Amazon</a></div>
@@ -336,7 +342,7 @@ function initSearch(){
   let h=null;
   const draw=()=>{const v=q.value.trim();if(v.length<2){box.hidden=true;box.innerHTML='';return;}
     const R=searchCat(v,8);
-    box.innerHTML=(R.length?R.map(p=>{const m=match(p);return`<button class="xr" data-act="coffee" data-id="${esc(p.id)}"><span class="xr-img">${p.image?`<img src="${esc(imgW(p.image,120))}" alt="">`:''}</span><span class="xr-t"><b>${esc(p.name)}</b><span>${esc(p.roaster)} · ${esc(originLine(p))}${p.price?' · '+esc(priceText(p)):''}</span></span>${m?`<span class="xr-m m-${m.cls}">${m.score}%</span>`:''}</button>`;}).join(''):`<p class="xr-none">No coffee called “${esc(v)}” in our list yet.</p>`)
+    box.innerHTML=(R.length?R.map(p=>{const m=match(p);return`<button class="xr" data-act="coffee" data-id="${esc(p.id)}"><span class="xr-img">${p.image?`<img src="${esc(imgW(p.image,120))}" alt="">`:''}</span><span class="xr-t"><b>${esc(p.name)}</b><span>${esc(p.roaster)} · ${esc(originLine(p))}${p.price?' · '+esc(priceText(p)):''}</span></span>${m?`<span class="xr-m m-${m.cls}">${m.score}% match</span>`:''}</button>`;}).join(''):`<p class="xr-none">No coffee called “${esc(v)}” in our list yet.</p>`)
       +`<button class="xr xr-web" data-act="websearch"><span class="xr-img">↗</span><span class="xr-t"><b>${R.length?'Not the one? ':''}Search the web for “${esc(v)}”</b><span>Finds it on roasters’ sites and checks the link works</span></span></button>`;
     box.hidden=false;};
   q.oninput=()=>{clearTimeout(h);h=setTimeout(draw,90);};
@@ -369,7 +375,7 @@ function similarTo(e,n){
   const out=[],seen=new Set();for(const x of L){if(seen.has(x.p.roaster)&&out.length<n-1&&L.length>n*3)continue;seen.add(x.p.roaster);out.push(x.p);if(out.length>=n)break;}
   return out;
 }
-function miniCard(p){const m=match(p);return`<button class="mini" data-act="coffee" data-id="${esc(p.id)}"><span class="xr-img">${p.image?`<img src="${esc(imgW(p.image,160))}" alt="" loading="lazy">`:''}</span><span class="xr-t"><b>${esc(p.name)}</b><span>${esc(p.roaster)} · ${esc(priceText(p))}</span></span>${m?`<span class="xr-m m-${m.cls}">${m.score}%</span>`:''}</button>`;}
+function miniCard(p){const m=match(p);return`<button class="mini" data-act="coffee" data-id="${esc(p.id)}"><span class="xr-img">${p.image?`<img src="${esc(imgW(p.image,160))}" alt="" loading="lazy">`:''}</span><span class="xr-t"><b>${esc(p.name)}</b><span>${esc(p.roaster)} · ${esc(priceText(p))}</span></span>${m?`<span class="xr-m m-${m.cls}">${m.score}% match</span>`:''}</button>`;}
 /* ---------- journal ---------- */
 const VL=SITE.verdicts;
 function jcard(e){

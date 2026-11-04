@@ -612,3 +612,5 @@ input[type=email],input[type=tel],input[type=search].plain{width:100%;border:1px
 /* Match ring sits fully inside the photo's corner (it used to straddle the edge and get clipped) */
 .x-ring{right:10px;bottom:10px;top:auto;transform:none;background:rgba(8,8,8,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:4px;border-radius:50%;box-shadow:0 4px 14px rgba(0,0,0,.45)}
 .x-ring{display:flex;line-height:0}
+.x-lbl{font-size:14px;font-weight:650}
+.xr-m{white-space:nowrap;font-size:13px}
