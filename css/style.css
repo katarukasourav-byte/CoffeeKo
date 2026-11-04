@@ -609,3 +609,6 @@ footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px}
 #photos .ph:not(.bean) img{filter:saturate(.66) contrast(1.06) brightness(.74) sepia(.16)}
 input[type=email],input[type=tel],input[type=search].plain{width:100%;border:1px solid #2A2A2A;background:#141414;color:var(--ink);border-radius:12px;padding:11px 13px;font-size:15px;color-scheme:dark}
 .sheet a:not(.btn){color:var(--accent)}
+/* Match ring sits fully inside the photo's corner (it used to straddle the edge and get clipped) */
+.x-ring{right:10px;bottom:10px;top:auto;transform:none;background:rgba(8,8,8,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:4px;border-radius:50%;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+.x-ring{display:flex;line-height:0}
