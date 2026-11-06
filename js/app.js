@@ -208,6 +208,8 @@ function trackPersona(P){
 }
 /* =================== render =================== */
 function renderAll(){renderProfile();renderExplore();renderJournal();renderShelf();}
+/* Remember how far each sideways list was scrolled, and put it back after redrawing */
+function keepScroll(el,fn){const rails=[...el.querySelectorAll('.rail')].map(r=>r.scrollLeft);fn();el.querySelectorAll('.rail').forEach((r,i)=>{if(rails[i])r.scrollLeft=rails[i];});}
 function renderProfile(){
   const el=$('#profile-body');const T=target();const p=state.prefs;
   if(!T.ready){el.innerHTML=remindBanner()+`<div class="tid empty-tid"><div class="tid-l"><span class="kicker">Coffee Personality</span><h3 class="tid-name">Find your coffee personality.</h3><p class="tid-desc">Eight quick questions about how you drink coffee now. Then every coffee you rate sharpens it.</p><div class="actions"><button class="btn accent big" data-act="quiz">Start the taste quiz</button><button class="btn ghost big" data-act="bulk">Add past coffees</button></div><button class="linkbtn" data-act="types">See all ${Object.keys(PERS).length-1} personalities</button></div><div class="tid-r ghost-radar">${radar({fams:{chocolate:2,nutty:1.4,caramel:1.8,fruity:1,citrus:.8,floral:.6,spicy:.9,earthy:.7}})}</div></div>`;return;}
@@ -247,7 +249,11 @@ let xf='all',xAll=false;
 const XF=[['all','All'],['top','Top matches'],['light','Light roast'],['medium','Medium'],['dark','Dark'],['fruity','Fruity'],['chocolate','Chocolatey'],['natural','Natural'],['washed','Washed'],['single','Single origin'],['blend','Blends'],['budget','Best value']];
 const keyOf=p=>((p.roaster||'')+'|'+(p.name||'')).toLowerCase();
 const inJournal=p=>state.journal.find(e=>(p.id&&e.catalogId===p.id)||keyOf(e)===keyOf(p));
-function diversify(L){const out=[],rest=L.slice();while(rest.length){let i=rest.findIndex(x=>!(out.length>=2&&out[out.length-1].p.roaster===x.p.roaster&&out[out.length-2].p.roaster===x.p.roaster));if(i<0)i=0;out.push(rest.splice(i,1)[0]);}return out;}
+function diversify(L){const out=[],rest=L.slice();
+  while(rest.length){const recent=out.slice(-3).map(x=>x.p.roaster),last=out.length?out[out.length-1].p.roaster:null;
+    let i=rest.findIndex(x=>!recent.includes(x.p.roaster));if(i<0)i=rest.findIndex(x=>x.p.roaster!==last);if(i<0)i=0;out.push(rest.splice(i,1)[0]);}
+  return out;}
+function diversifyOld(L){const out=[],rest=L.slice();while(rest.length){let i=rest.findIndex(x=>!(out.length>=2&&out[out.length-1].p.roaster===x.p.roaster&&out[out.length-2].p.roaster===x.p.roaster));if(i<0)i=0;out.push(rest.splice(i,1)[0]);}return out;}
 function exploreList(){
   const hidden=new Set(state.settings.hidden||[]);
   let L=state.cat.filter(p=>p.available&&!hidden.has(keyOf(p))&&!hidden.has(p.id)).map(p=>({p,m:match(p)}));
@@ -259,9 +265,9 @@ function exploreList(){
     if(f==='fruity')return fm.has('fruity')||fm.has('citrus');if(f==='chocolate')return fm.has('chocolate')||fm.has('nutty');
     if(f==='natural')return /natural|anaerobic|carbonic/.test(pr);if(f==='washed')return /washed/.test(pr);
     if(f==='single')return p.blend===false;if(f==='blend')return p.blend===true;if(f==='local')return p.currency===LOCAL_CUR;if(f==='abroad')return !!LOCAL_CUR&&p.currency!==LOCAL_CUR;if(f==='budget')return p.price250&&p.price250<=valueLine(p.currency);return true;});
-  L=diversify(L);
   /* In "All" and "Top matches", mix in roasters from other countries: about one card in four */
-  if(LOCAL_CUR&&(f==='all'||f==='top')){const home=L.filter(x=>x.p.currency===LOCAL_CUR),away=L.filter(x=>x.p.currency!==LOCAL_CUR);
+  if(!(LOCAL_CUR&&(f==='all'||f==='top')))L=diversify(L);
+  if(LOCAL_CUR&&(f==='all'||f==='top')){const home=diversify(L.filter(x=>x.p.currency===LOCAL_CUR)),away=diversify(L.filter(x=>x.p.currency!==LOCAL_CUR));if(!home.length||!away.length)L=diversify(L);
     if(home.length&&away.length){const out=[];let i=0,j=0;while(i<home.length||j<away.length){for(let k=0;k<3&&i<home.length;k++)out.push(home[i++]);if(j<away.length)out.push(away[j++]);if(i>=home.length)while(j<away.length)out.push(away[j++]);}L=out;}}
   return L.map(x=>Object.assign(x,{saved:!!inJournal(x.p)}));
 }
@@ -286,13 +292,13 @@ function renderExplore(){
     :st==='error'?`<div class="rail-empty"><p>Couldn’t load the coffee list.</p><button class="btn ghost small" data-act="reload-cat">Try again</button></div>`
     :!state.cat.length?`<div class="rail-empty"><p>The coffee list is being built from roasters’ shops. Check back in a little while.</p></div>`
     :!XL.length?`<p class="muted">Nothing matches this filter.</p>`
-    :xAll?`<div class="xgrid">${XL.map(xcard).join('')}</div>`
+    :xAll?`<div class="xall-bar"><button class="btn ghost small" data-act="xall">← Back to top picks</button><span class="muted">All ${XL.length} coffees</span></div><div class="xgrid">${XL.map(xcard).join('')}</div>`
     :`<div class="rail" tabindex="0" aria-label="Coffee matches">${XL.slice(0,LIM).map(xcard).join('')}${XL.length>LIM?`<button class="xcard xmore" data-act="xall"><b>See all ${XL.length}</b><span class="muted">coffees in this list</span></button>`:''}</div>`;
   const roasters=new Set(state.cat.map(c=>c.roaster)).size;
   const XFs=LOCAL_CUR&&state.cat.some(c=>c.currency===LOCAL_CUR)&&state.cat.some(c=>c.currency!==LOCAL_CUR)?[XF[0],['local','Near you'],['abroad','International'],...XF.slice(1)]:XF;
   el.innerHTML=`<div class="filters" role="group" aria-label="Filter">${XFs.map(([k,l])=>`<button class="fchip" data-xf="${k}" aria-pressed="${xf===k}">${l}</button>`).join('')}</div>
    ${body}
-   ${xAll&&XL.length?`<button class="btn ghost small" data-act="xall">Show fewer</button>`:''}
+   ${xAll&&XL.length?`<button class="btn ghost small" data-act="xall">← Back to top picks</button>`:''}
    ${state.cat.length?`<p class="muted fine">${state.cat.length} coffees from ${roasters} roasters. Prices, photos and links come from each roaster’s shop and are refreshed daily. Matches update every time you rate a coffee.</p>`:''}`;
   el.querySelectorAll('[data-xf]').forEach(b=>b.onclick=()=>{xf=b.dataset.xf;xAll=false;renderExplore();});
   $('#mmBtn').disabled=!XL.some(x=>!x.saved);
@@ -346,7 +352,9 @@ function initSearch(){
       +`<button class="xr xr-web" data-act="websearch"><span class="xr-img">↗</span><span class="xr-t"><b>${R.length?'Not the one? ':''}Search the web for “${esc(v)}”</b><span>Finds it on roasters’ sites and checks the link works</span></span></button>`;
     box.hidden=false;};
   q.oninput=()=>{clearTimeout(h);h=setTimeout(draw,90);};
-  q.onfocus=draw;
+  const keep=()=>{const r=$('.xsearch').getBoundingClientRect(),top=(document.querySelector('.subnav')?.getBoundingClientRect().bottom||70)+8;if(r.top<top||r.bottom>(window.visualViewport?.height||innerHeight))scrollBy({top:r.top-top,behavior:'smooth'});};
+  q.onfocus=()=>{draw();setTimeout(keep,350);};
+  if(window.visualViewport)visualViewport.addEventListener('resize',()=>{if(document.activeElement===q||!box.hidden)setTimeout(keep,120);});
   q.onkeydown=e=>{if(e.key==='Escape'){q.value='';draw();q.blur();}if(e.key==='Enter'){const f=box.querySelector('.xr');if(f)f.click();}};
   document.addEventListener('click',e=>{if(!e.target.closest('.xsearch'))box.hidden=true;});
 }
@@ -385,9 +393,10 @@ function jcard(e){
     <span class="jtxt"><b>${esc(e.name||'Unidentified coffee')}</b><span>${esc(e.roaster||e.origin||'')}</span>
     <span class="vtag v-${e.status==='saved'?'saved':e.status==='torate'?'torate':e.verdict}">${e.status==='saved'?'Saved to try':e.status==='torate'?'To rate':VL[e.verdict]||'Rated'}</span></span></button>`;
 }
-function renderJournal(){
+function renderJournal(){keepScroll($('#journal-body'),renderJournal0);}
+function renderJournal0(){
   const R=state.journal.filter(e=>e.status==='rated'),S=state.journal.filter(e=>e.status==='saved'),Q=toRate();
-  const jl=document.querySelector('.subnav a[href="#journal"]');if(jl)jl.innerHTML=(SITE.sections?.journal?.title||'Journal')+(Q.length?` <span class="dot">${Q.length}</span>`:'');
+  const jl=document.querySelector('.subnav a[href="#journal"]');if(jl)jl.innerHTML=(SITE.sections?.journal?.tab||'Journal')+(Q.length?` <span class="dot">${Q.length}</span>`:'');
   $('#journal-body').innerHTML=(Q.length?`<div class="rail-h row-h"><h4>To rate · ${Q.length}</h4><button class="btn accent small" data-act="rate-deck">Rate them now</button></div><div class="rail jrail">${Q.map(jcard).join('')}</div>`:'')+`
    <div class="rail-h"><h4>Tried · ${R.length}</h4></div>
    <div class="rail jrail"><button class="jcard add" data-act="scan"><span class="jimg plus">+</span><span class="jtxt"><b>Scan a bag</b><span>Rate what you’re drinking</span></span></button><button class="jcard add" data-act="bulk"><span class="jimg plus">⧉</span><span class="jtxt"><b>Add past coffees</b><span>Several photos at once</span></span></button>${R.map(jcard).join('')}</div>
@@ -427,7 +436,8 @@ function freshRing(f,size){
   const a=-Math.PI/2+frac*2*Math.PI, x=size/2+Math.cos(a)*r, y=size/2+Math.sin(a)*r;
   return`<span class="fring" style="width:${size}px;height:${size}px"><svg viewBox="0 0 ${size} ${size}" aria-hidden="true">${seg(0,f.rest/span,'fr-rest')}${seg(f.rest/span,f.peak/span,'fr-peak')}${seg(f.peak/span,1,'fr-fade')}<circle cx="${x}" cy="${y}" r="6" class="fr-now"/></svg><b>Day ${Math.max(0,f.age)}</b><i>${STG[f.stage]}</i></span>`;
 }
-function renderShelf(){
+function renderShelf(){keepScroll($('#shelf-body'),renderShelf0);}
+function renderShelf0(){
   const s=state.settings;
   const list=state.shelf.map(b=>[b,fresh(b)]).sort((a,b)=>(a[0].leftG<=0)-(b[0].leftG<=0)||a[1].useBy-b[1].useBy);
   const firstIdx=list.findIndex(([b,f])=>b.leftG>0&&f.stage!=='stale');
@@ -440,13 +450,40 @@ function renderShelf(){
      <div class="s-left"><b>${Math.round(b.leftG)}</b> g left <span class="muted">· ~${f.cups} cups</span></div>
      <div class="gauge"><i style="width:${Math.min(100,b.leftG/b.bagG*100)}%"></i></div>
      <button class="btn small" data-s="cup" ${b.leftG<=0?'disabled':''}>Brewed a cup</button></article>`).join('')}</div>
+   <div class="actions fine-row"><button class="btn ghost small" data-act="brewlog">Brew history${(state.settings.brewLog||[]).length?' · '+state.settings.brewLog.length:''}</button></div>
    <div class="actions fine-row"><label class="muted" for="remind">Shelf check reminder</label><select id="remind" style="width:auto">${[[3,'Every 3 days'],[5,'Every 5 days'],[7,'Every week'],[14,'Every 2 weeks'],[0,'Off']].map(([v,l])=>`<option value="${v}" ${s.remindEvery==v?'selected':''}>${l}</option>`).join('')}</select><span class="muted">Reminders appear here when you open CoffeeKo. There are no emails yet.</span></div>`;
   $('#remind').onchange=e=>{s.remindEvery=+e.target.value;saveProfile();renderShelf();};
   document.querySelectorAll('#shelf-body .scard[data-id]').forEach(card=>{
     const b=state.shelf.find(x=>x.id===card.dataset.id);
     card.querySelector('[data-s=view]').onclick=()=>openBagView(b);
-    card.querySelector('[data-s=cup]').onclick=()=>{b.leftG=Math.max(0,b.leftG-b.doseG);if(!b.openedDate)b.openedDate=isoD(today());b.updatedAt=Date.now();state.settings.shelfCheckedAt=Date.now();saveBag(b);saveProfile();renderShelf();toast(`−${b.doseG} g. ${Math.round(b.leftG)} g left`);};
+    card.querySelector('[data-s=cup]').onclick=()=>openBrew(b);
   });
+}
+/* ---------- Brewed a cup: pick the dose, then log it ---------- */
+const DOSES=[15,18,20];
+function openBrew(b){
+  const last=b.doseG||15,isPreset=DOSES.includes(last);
+  openSheet(`${head('Brewed a cup')}<h3>${esc(b.name)}</h3><p class="lead">How much coffee did you use? ${Math.round(b.leftG)} g left in the bag.</p>
+   <div class="doses" role="radiogroup" aria-label="Coffee used">${DOSES.map(g=>`<button class="dose" role="radio" data-g="${g}" aria-checked="${g===last}">${g} g</button>`).join('')}<button class="dose" role="radio" data-g="m" aria-checked="${!isPreset}">Other</button></div>
+   <div class="field" id="doseMan" ${isPreset?'hidden':''}><label for="doseIn">Grams used</label><input id="doseIn" type="number" min="1" max="${Math.max(1,Math.round(b.leftG))}" inputmode="decimal" value="${isPreset?'':last}"></div>
+   <div class="sheet-foot"><button class="btn quiet" data-close>Cancel</button><button class="btn accent big" id="doseOk">Log ${last} g</button></div>`);
+  let g=last;const ok=$('#doseOk'),man=$('#doseMan'),inp=$('#doseIn');
+  const set=v=>{g=v;ok.textContent=g>0?`Log ${g} g`:'Enter grams';ok.disabled=!(g>0);};
+  sheet.querySelectorAll('.dose').forEach(d=>d.onclick=()=>{sheet.querySelectorAll('.dose').forEach(x=>x.setAttribute('aria-checked',x===d));if(d.dataset.g==='m'){man.hidden=false;inp.focus();set(+inp.value||0);}else{man.hidden=true;set(+d.dataset.g);}});
+  inp.oninput=()=>set(Math.round((+inp.value||0)*10)/10);
+  ok.onclick=()=>{if(!(g>0))return;const used=Math.min(g,b.leftG);
+    b.leftG=Math.max(0,b.leftG-g);b.doseG=g;if(!b.openedDate)b.openedDate=isoD(today());b.updatedAt=Date.now();
+    const s=state.settings;s.shelfCheckedAt=Date.now();s.brewLog=[{at:Date.now(),bag:b.id,name:b.name,g:used},...(s.brewLog||[])].slice(0,500);
+    saveBag(b);saveProfile();closeSheet();renderShelf();toast(`Logged ${used} g. ${Math.round(b.leftG)} g left`);};
+}
+function openBrewLog(){
+  const L=state.settings.brewLog||[];
+  const byDay={};L.forEach(x=>{const k=new Date(x.at).toDateString();(byDay[k]=byDay[k]||[]).push(x);});
+  const tm=t=>new Date(t).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+  const dl=k=>{const d=new Date(k),t=today(),y=new Date(+t-DAY);return d.toDateString()===t.toDateString()?'Today':d.toDateString()===y.toDateString()?'Yesterday':d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});};
+  const total=L.reduce((a,x)=>a+x.g,0);
+  openSheet(`${head('Brew history')}<h3>Brew history</h3><p class="lead">${L.length?`${L.length} cup${L.length===1?'':'s'} logged · ${Math.round(total)} g of coffee`:'Every time you tap “Brewed a cup” on your shelf, it’s logged here.'}</p>
+   ${Object.entries(byDay).map(([k,xs])=>`<div class="bl-day"><h4>${dl(k)} <span class="muted">· ${xs.length} cup${xs.length===1?'':'s'}, ${Math.round(xs.reduce((a,x)=>a+x.g,0))} g</span></h4>${xs.map(x=>`<div class="bl-row"><span class="bl-t">${tm(x.at)}</span><span class="bl-n">${esc(x.name)}</span><b>${x.g} g</b></div>`).join('')}</div>`).join('')}`);
 }
 function openBagView(b){
   const f=fresh(b);const[adv,cls]=advice(b,f);const span=f.peak+30;const pct=d=>Math.max(0,Math.min(100,d/span*100));
@@ -499,12 +536,22 @@ function hidePick(p){const h=new Set(state.settings.hidden||[]);h.add(p.id||keyO
 /* =================== sheet =================== */
 const wrap=$('#sheetWrap'), sheet=$('#sheet');
 let lastFocus=null;
-function openSheet(html){lastFocus=document.activeElement;sheet.innerHTML=html;wrap.classList.add('on');document.body.style.overflow='hidden';sheet.scrollTop=0;setTimeout(()=>{const f=sheet.querySelector('[autofocus]')||sheet.querySelector('.x');f&&f.focus();},30);}
-function closeSheet(){wrap.classList.remove('on');sheet.innerHTML='';document.body.style.overflow='';lastFocus&&lastFocus.focus&&lastFocus.focus();}
+/* Phone back gesture / browser Back: an open window or the "See all" list is a step in the
+   browser's history, so Back closes it instead of leaving the site. */
+let afterClose=null;
+function pushStep(kind){try{history.pushState({ck:kind},'');}catch(e){}}
+addEventListener('popstate',()=>{
+  if(wrap.classList.contains('on')){doClose();const f=afterClose;afterClose=null;f&&f();return;}
+  if(xAll){xAll=false;renderExplore();document.getElementById('explore').scrollIntoView();}
+});
+function openSheet(html){if(!wrap.classList.contains('on'))pushStep('sheet');lastFocus=document.activeElement;sheet.innerHTML=html;wrap.classList.add('on');document.body.style.overflow='hidden';sheet.scrollTop=0;setTimeout(()=>{const f=sheet.querySelector('[autofocus]')||sheet.querySelector('.x');f&&f.focus();},30);}
+function doClose(){wrap.classList.remove('on');sheet.innerHTML='';document.body.style.overflow='';lastFocus&&lastFocus.focus&&lastFocus.focus();}
+function closeSheet(then){if(!wrap.classList.contains('on')){then&&then();return;}if(history.state&&history.state.ck==='sheet'){afterClose=then||null;history.back();}else{doClose();then&&then();}}
 wrap.addEventListener('click',e=>{if(e.target===wrap)closeSheet();});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&wrap.classList.contains('on'))closeSheet();});
 const head=(step)=>`<div class="sheet-head"><span class="step">${step||''}</span><button class="x" aria-label="Close" data-close>×</button></div>`;
-sheet.addEventListener('click',e=>{if(e.target.closest('[data-close]'))closeSheet();});
+sheet.addEventListener('click',e=>{const c=e.target.closest('[data-close]');if(!c)return;
+  const h=c.getAttribute('href');if(h&&h.startsWith('#')){e.preventDefault();closeSheet(()=>{const t=document.getElementById(h.slice(1));t&&t.scrollIntoView();});}else closeSheet();});
 
 /* ---------- quiz ---------- */
 const QUIZ=SITE.quiz.map(q=>({k:q.key,q:q.q,lead:q.lead,multi:!!q.multi,max:q.max,opts:q.options}));
@@ -877,8 +924,9 @@ document.addEventListener('click',e=>{
   if(act==='contact'){if(a.tagName==='A')e.preventDefault();return openContact(a.dataset.topic);}
   if(act==='coffee'){const p=catById.get(a.dataset.id);if(p)openCoffee(p);return;}
   if(act==='types')return openTypes();
+  if(act==='brewlog')return openBrewLog();
   if(act==='websearch')return webSearch();
-  if(act==='xall'){xAll=!xAll;renderExplore();if(!xAll)document.getElementById('explore').scrollIntoView();return;}
+  if(act==='xall'){if(!xAll){xAll=true;pushStep('xall');renderExplore();}else if(history.state&&history.state.ck==='xall')history.back();else{xAll=false;renderExplore();document.getElementById('explore').scrollIntoView();}return;}
   if(act==='reload-cat'){state.catState='loading';renderExplore();loadCatalog(true);return;}
   if(act==='quiz')openQuiz();
   else if(act==='scan')openScan(false);
