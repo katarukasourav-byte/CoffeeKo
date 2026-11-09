@@ -90,7 +90,7 @@ window.SITE = {
   sections: {
     profile: { title: 'Coffee Personality', tab: 'Personality' },
     explore: { title: 'Explore', sub: 'Real coffees from specialty roasters, ranked by how well they match you. Every link opens the roaster’s own product page.', matchmaker: 'Open Match maker', search: 'Search any coffee, roaster or origin' },
-    journal: { title: 'Journal', sub: 'Every coffee you’ve tried, and the ones waiting to be tried.' },
+    journal: { title: 'Journal – coffees tried earlier', tab: 'Journal', sub: 'Every coffee you’ve tried, and the ones waiting to be tried.' },
     shelf:   { title: 'Shelf',   sub: 'What’s at home, how fresh it is, and what to brew first.' }
   },
 
