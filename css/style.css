@@ -653,3 +653,9 @@ input[type=email],input[type=tel],input[type=search].plain{width:100%;border:1px
 .pb-n{display:flex;flex-direction:column;gap:2px;min-width:0}
 .pb-n .muted{font-size:13px}
 .pb .vtag{white-space:nowrap;flex:none}
+.bv-rate{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 0;padding:12px 14px;border:1px solid #1E1E1E;border-radius:14px;font-size:14.5px}
+.bv-rate>span:first-child{color:var(--ink-soft)}
+.bv-rate .btn{margin-left:auto}
+.bv-top .fring{flex:none}
+.steps{margin:6px 0 10px;padding-left:22px;line-height:1.7;color:#D6CEC6}
+.steps li{margin:6px 0}

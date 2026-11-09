@@ -1,5 +1,5 @@
 {
-  "_help": "COFFEE CATALOGUE. The site reads real coffees from these roasters' online shops every hour (one roaster at a time), so links, prices and packaging photos stay current. To add a roaster, copy a block. 'country' is where the roaster is based (two letters, e.g. GB) and 'currency' is the shop's currency (e.g. GBP). 'domains' can list more than one address; the first that works is used. Only shops built on Shopify can be read automatically.",
+  "_help": "BACKUP ONLY. The live roaster list is the Supabase table 'roasters' (Table Editor → roasters): add a row there to add a roaster — name, domains (e.g. [\"shop.com\"]), country (2 letters) and currency. This file is used only if that table is empty.",
   "roasters": [
     {
       "name": "Blue Tokai",

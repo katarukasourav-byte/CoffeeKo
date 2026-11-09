@@ -5,7 +5,7 @@ A coffee website for **coffeeko.in**: a scroll story (bean to cup), user account
 - **Hosting:** Netlify (static files + one server function)
 - **Accounts and database:** Supabase (email + password login, Postgres)
 - **AI:** Claude Haiku 5.5 via the Anthropic API, called only from the server functions: reading bag photos, reading roasters' product descriptions for the catalogue, and web search for coffees not in the catalogue. Recommendations themselves are calculated in the browser and cost nothing.
-- **Coffee catalogue:** `netlify/functions/catalog-cron.mjs` runs every hour and refreshes one roaster's shop (list in `config/catalog.json`). Data is stored in the Supabase table `catalog` (set up by `supabase/catalog.sql`).
+- **Coffee catalogue:** `netlify/functions/catalog-cron.mjs` runs every hour and refreshes two roasters' shops (list in the Supabase table `roasters`). Data is stored in the Supabase table `catalog` (set up by `supabase/catalog.sql`).
 
 ---
 
@@ -82,7 +82,7 @@ Every change works the same way: **open the file on github.com → pencil icon �
 | Site name in the header | `config/content.js` | `brand:` |
 | Title Google and browser tabs show | `config/content.js` `pageTitle:` and the `<title>` / `description` lines at the top of `index.html` | |
 | Coffee Personality names and descriptions | `config/content.js` | `personalities:` |
-| Roasters in the catalogue | `config/catalog.json` | the `roasters` list (Shopify shops only; set `country` and `currency`) |
+| Roasters in the catalogue | **Supabase → Table Editor → `roasters`** (no code change) | add a row: `name`, `domains` like `["shop.com"]`, `country` (e.g. GB), `currency` (e.g. GBP). Shopify shops only. Shops that fail 3 times switch off (`enabled` = false). |
 | Feedback & contact messages | Netlify → Forms → `contact` | turn on **Form notifications → Email** to get each message in your inbox |
 | “Add past coffees” wording, how many photos at once | `config/content.js` | `onboarding:` |
 | Rating reminder wording, snooze length | `config/content.js` | `reminders:` |

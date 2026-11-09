@@ -51,20 +51,30 @@ async function fetchShop(domain) {
 }
 
 /* ---------- 1. sync one roaster ---------- */
+/* The roaster list lives in the Supabase table "roasters" (add rows there; no code change needed).
+   config/catalog.json is only a fallback if that table is empty. A shop that fails 3 times in a row
+   is switched off (enabled = false) so it stops being retried. */
+const MAX_FAILS = 3;
+async function roasterList() {
+  try { const r = await db('roasters?select=id,name,domains,country,currency,enabled,fails,last_synced,working_domain&enabled=eq.true'); if (r.length) return r; } catch (e) { console.warn('roasters table:', e.message); }
+  return cfg.roasters.map(r => ({ ...r, id: null }));
+}
+async function noteRoaster(R, patch) { if (R.id) await db(`roasters?id=eq.${R.id}`, { method: 'PATCH', body: JSON.stringify({ ...patch, last_synced: new Date().toISOString() }) }); }
+
 export async function syncRoaster(name) {
-  const known = await db('catalog_roasters?select=domain,roaster,last_synced');
-  const list = cfg.roasters;
+  const list = await roasterList();
   let R = name ? list.find(r => r.name.toLowerCase() === String(name).toLowerCase()) : null;
-  if (!R) { // the roaster synced longest ago (never-synced first)
-    const last = n => { const k = known.find(x => x.roaster === n); return k?.last_synced ? Date.parse(k.last_synced) : 0; };
-    R = list.slice().sort((a, b) => last(a.name) - last(b.name))[0];
-  }
+  if (name && !R) { const one = await db(`roasters?select=*&name=eq.${encodeURIComponent(name)}`).catch(() => []); R = one[0] || null; }
+  if (!R) R = list.slice().sort((a, b) => (a.last_synced ? Date.parse(a.last_synced) : 0) - (b.last_synced ? Date.parse(b.last_synced) : 0))[0]; // longest ago first
+  if (!R) return { status: 'no roasters' };
   let domain = null, products = null, err = null;
-  for (const d of R.domains) { try { products = await fetchShop(d); domain = d; break; } catch (e) { err = e.message; } }
+  const tries = [R.working_domain, ...(R.domains || [])].filter((d, i, a) => d && a.indexOf(d) === i);
+  for (const d of tries) { try { products = await fetchShop(d); domain = d; break; } catch (e) { err = e.message; } }
   const status = products ? 'ok' : 'failed: ' + err;
   if (!products) {
-    await db('catalog_roasters?on_conflict=domain', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify([{ domain: R.domains[0], roaster: R.name, last_synced: new Date().toISOString(), status, products: 0 }]) });
-    return { roaster: R.name, status };
+    const fails = (R.fails || 0) + 1;
+    await noteRoaster(R, { status, fails, products: 0, ...(fails >= MAX_FAILS ? { enabled: false, note: 'Switched off after ' + fails + ' failed reads' } : {}) });
+    return { roaster: R.name, status, fails };
   }
   const base = 'https://' + domain.replace(/^www\./, 'www.');
   const coffees = products.filter(p => {
@@ -89,7 +99,7 @@ export async function syncRoaster(name) {
   // Anything no longer listed in the shop is marked unavailable
   const gone = existing.map(x => x.id).filter(id => !rows.some(r => r.id === id));
   if (gone.length) await db(`catalog?id=in.(${gone.map(g => '"' + g.replace(/"/g, '') + '"').join(',')})`, { method: 'PATCH', body: JSON.stringify({ available: false }) });
-  await db('catalog_roasters?on_conflict=domain', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify([{ domain, roaster: R.name, last_synced: new Date().toISOString(), status, products: rows.length }]) });
+  await noteRoaster(R, { status, fails: 0, products: rows.length, working_domain: domain });
   return { roaster: R.name, domain, status, products: rows.length, changed: changed.length, gone: gone.length };
 }
 
@@ -142,7 +152,7 @@ export async function extractBatch(n, offset) {
 }
 
 export async function status() {
-  const roasters = await db('catalog_roasters?select=*&order=roaster');
+  const roasters = await db('roasters?select=name,country,currency,enabled,fails,working_domain,status,products,last_synced&order=enabled.desc,name');
   return { roasters };
 }
 export { db, strip, hash, packOf, UA };

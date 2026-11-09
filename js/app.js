@@ -424,7 +424,7 @@ function fresh(b){
   return{rd,rest,peak,age,peakEnd,openEnd,useBy,cups,runOut,stage,now};
 }
 function advice(b,f){
-  if(b.leftG<=0)return['Empty. Mark it finished and rate it in your journal.',''];
+  if(b.leftG<=0){const e=entryOfBag(b);return[e&&e.status==='rated'?'Empty. Refill it by changing the grams, or tap Finished to clear it.':'Empty. Rate it below, then tap Finished to clear it.',''];}
   if(f.stage==='rest')return[`Still resting. It should open up from ${fmtD(new Date(+f.rd+f.rest*DAY))}.`,''];
   if(f.stage==='stale')return['Past its best. Fine for cold brew or milk drinks.','bad'];
   if(f.stage==='fade')return['Starting to fade. Brew it soon; a slightly finer grind helps.','warn'];
@@ -485,10 +485,19 @@ function openBrew(b){
     const s=state.settings;s.shelfCheckedAt=Date.now();s.brewLog=[{at:Date.now(),bag:b.id,name:b.name,g:used},...(s.brewLog||[])].slice(0,500);
     saveBag(b);saveProfile();closeSheet();renderShelf();toast(`Logged ${used} g. ${Math.round(b.leftG)} g left`);};
 }
+/* The journal entry a shelf bag belongs to: the saved link first, then a careful name match */
+function entryOfBag(b){
+  if(b.entryId){const e=state.journal.find(j=>j.id===b.entryId);if(e)return e;}
+  const toks=t=>norm(t).split(' ').map(w=>w.replace(/s$/,'')).filter(w=>w.length>2&&!['coffee','roaster','roasters','the','and'].includes(w));
+  const bt=toks(b.name);if(bt.length<2)return null;
+  const hits=state.journal.map(j=>{const jt=new Set(toks(j.name+' '+(j.roaster||'')));const f=bt.filter(w=>jt.has(w)).length/bt.length;return{j,f};}).filter(x=>x.f>=.8)
+    .sort((x,y)=>y.f-x.f||((y.j.status==='rated')-(x.j.status==='rated')));
+  return hits.length?hits[0].j:null;
+}
 function openPastBags(){
   const P=state.shelf.filter(b=>b.leftG<=0).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
   openSheet(`${head('Past bags')}<h3>Past bags</h3><p class="lead">Coffees you’ve finished. Open one to refill it, or remove it from your shelf.</p>
-   <div class="pb-list">${P.map(b=>{const e=state.journal.find(j=>keyOf(j)===keyOf(b)||j.name===b.name);return`<button class="pb" data-id="${b.id}"><span class="pb-n"><b>${esc(b.name)}</b><span class="muted">${b.bagG} g bag · roasted ${fmtD(parseD(b.roastDate)||today())}${b.updatedAt?' · finished '+fmtD(new Date(b.updatedAt)):''}</span></span>${e&&e.status==='rated'?`<span class="vtag v-${e.verdict}">${VL[e.verdict]||'Rated'}</span>`:'<span class="vtag v-torate">Not rated</span>'}</button>`;}).join('')}</div>`);
+   <div class="pb-list">${P.map(b=>{const e=entryOfBag(b);return`<button class="pb" data-id="${b.id}"><span class="pb-n"><b>${esc(b.name)}</b><span class="muted">${b.bagG} g bag · roasted ${fmtD(parseD(b.roastDate)||today())}${b.updatedAt?' · finished '+fmtD(new Date(b.updatedAt)):''}</span></span>${e&&e.status==='rated'?`<span class="vtag v-${e.verdict}">${VL[e.verdict]||'Rated'}</span>`:'<span class="vtag v-torate">Not rated</span>'}</button>`;}).join('')}</div>`);
   sheet.querySelectorAll('.pb').forEach(x=>x.onclick=()=>{const b=state.shelf.find(y=>y.id===x.dataset.id);if(b)openBagView(b);});
 }
 function openBrewLog(){
@@ -506,12 +515,14 @@ function openBagView(b){
    <div class="tl-wrap"><div class="timeline"><span class="tl-rest" style="width:${pct(f.rest)}%"></span><span class="tl-peak" style="width:${pct(f.peak)-pct(f.rest)}%"></span><span class="tl-fade" style="width:${100-pct(f.peak)}%"></span></div><span class="tl-today" style="left:${pct(f.age)}%" data-l="Today"></span></div>
    <div class="tl-legend"><span>Resting</span><span>Best</span><span>Fading</span></div>
    <p class="advice ${cls}">${adv}</p>
+   ${(()=>{const e=entryOfBag(b);return e?`<div class="bv-rate">${e.status==='rated'?`<span>Your rating</span><span class="vtag v-${e.verdict}">${VL[e.verdict]||'Rated'}</span><button class="btn quiet small" id="bvRate">See or change</button>`:`<span>Not rated yet</span><button class="btn ghost small" id="bvRate">Rate it</button>`}</div>`:'';})()}
    <div class="row c2" style="margin-top:18px"><div class="field"><label for="bvLeft">Grams left</label><input id="bvLeft" type="number" min="0" value="${Math.round(b.leftG)}"></div><div class="field"><label>&nbsp;</label>${!b.openedDate?'<button class="btn ghost" id="bvOpen" style="width:100%">Opened today</button>':''}</div></div>
    <div class="sheet-foot"><span class="actions"><button class="btn quiet" id="bvEdit">Edit details</button><button class="btn quiet danger" id="bvDone">Finished</button></span><button class="btn accent" id="bvSave">Save</button></div>`);
   const touch=()=>{b.updatedAt=Date.now();state.settings.shelfCheckedAt=Date.now();saveBag(b);saveProfile();renderShelf();};
   $('#bvSave').onclick=()=>{const v=Math.max(0,+$('#bvLeft').value||0);if(v>b.bagG){toast(`That’s more than the ${b.bagG} g bag. Refilled it? Tap Edit details and change the bag size.`);$('#bvLeft').focus();return;}b.leftG=v;touch();closeSheet();toast('Updated');};
   const o=$('#bvOpen');if(o)o.onclick=()=>{b.openedDate=isoD(today());touch();openBagView(b);};
   $('#bvEdit').onclick=()=>openBag(b);
+  const br=$('#bvRate');if(br)br.onclick=()=>{const e=entryOfBag(b);if(!e)return;draft=e;if(e.status==='rated')renderResult(false);else renderRate();};
   const d=$('#bvDone');d.onclick=()=>{if(d.dataset.sure){state.shelf=state.shelf.filter(x=>x.id!==b.id);delBag(b.id);closeSheet();renderAll();toast('Bag finished');}else{d.dataset.sure=1;d.textContent='Tap again to remove';}};
 }
 
@@ -945,6 +956,7 @@ document.addEventListener('click',e=>{
   if(act==='coffee'){const p=catById.get(a.dataset.id);if(p)openCoffee(p);return;}
   if(act==='types')return openTypes();
   if(act==='brewlog')return openBrewLog();
+  if(act==='install')return installApp();
   if(act==='pastbags')return openPastBags();
   if(act==='websearch')return webSearch();
   if(act==='xall'){if(!xAll){xAll=true;pushStep('xall');renderExplore();}else if(history.state&&history.state.ck==='xall')history.back();else{xAll=false;renderExplore();document.getElementById('explore').scrollIntoView();}return;}
@@ -969,6 +981,17 @@ document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.tar
   top.onclick=()=>{scrollTo({top:document.getElementById('app').offsetTop,behavior:'instant'});const p=document.getElementById('profile');p.classList.remove('jumped');void p.offsetWidth;p.classList.add('jumped');};
   new MutationObserver(upd).observe(document.body,{attributes:true,attributeFilter:['class']});})();
 initSearch();
+/* ---------- Installable app ---------- */
+if('serviceWorker' in navigator&&location.protocol==='https:')addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+let installEvt=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;document.body.classList.add('can-install');});
+addEventListener('appinstalled',()=>{installEvt=null;document.body.classList.remove('can-install');toast('CoffeeKo is on your home screen');});
+const isApp=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+function installApp(){
+  if(installEvt){installEvt.prompt();installEvt.userChoice.finally(()=>{installEvt=null;});return;}
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  openSheet(`${head('Install the app')}<h3>Put CoffeeKo on your home screen</h3><p class="lead">It opens full screen like any app, with its own icon. Free, nothing to download from a store.</p>
+   ${ios?`<ol class="steps"><li>Tap the <b>Share</b> button <span aria-hidden="true">(square with an arrow)</span> at the bottom of Safari.</li><li>Scroll and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>.</li></ol>`:`<ol class="steps"><li>Open your browser’s <b>⋮ menu</b> (top right in Chrome).</li><li>Tap <b>Install app</b> or <b>Add to Home screen</b>.</li><li>Confirm.</li></ol>`}`);
+}
 /* Feedback & contact: sent through Netlify Forms, so the owner's email address is never shown.
    Netlify emails each message to the address set in Netlify → Forms → Form notifications. */
 const TOPICS=[['feedback','Feedback or an idea'],['problem','Something isn’t working'],['coffee','Suggest a coffee or roaster'],['question','A question for the team'],['data','My account or data']];
@@ -997,12 +1020,13 @@ function openContact(topic){
     catch(e){err.textContent='Couldn’t send just now. Check your connection and try again.';b.disabled=false;b.textContent='Send message';}};
 }
 if(location.hash==='#contact')setTimeout(()=>openContact(),400);
+if(location.hash==='#scan')setTimeout(()=>{if(document.body.classList.contains('signed-in'))openScan(false);},900);
 /* Account sheet: sign out, privacy, help, delete account */
 function openAccount(){
   openSheet(`${head('Your account')}<h3>Your account</h3><p class="lead">${esc(me?.email||'')}</p>
    <div class="acct"><button class="btn ghost" id="acOut">Sign out</button>
    <a class="btn quiet" href="privacy.html" target="_blank" rel="noopener">Privacy and your data</a>
-   <button class="btn quiet" data-act="contact">Feedback and help</button></div>
+   <button class="btn quiet" data-act="contact">Feedback and help</button>${isApp()?'':'<button class="btn quiet" data-act="install">Install the CoffeeKo app</button>'}</div>
    <details class="more danger-zone"><summary>Delete my account</summary>
    <p class="muted">This permanently deletes your account, Coffee Personality, journal, shelf and photos. It can’t be undone.</p>
    <div class="field"><label for="acConfirm">Type DELETE to confirm</label><input id="acConfirm" type="text" autocomplete="off"></div>
