@@ -947,6 +947,22 @@ function applyContent(){
 let authMode='signin';
 let googleOn=null;API.googleEnabled().then(v=>{googleOn=v;if(v&&!document.body.classList.contains('signed-in')&&['signin','signup'].includes(authMode))showAuth(authMode);});
 const GOOGLE_G='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#EA4335" d="M12 10.2v3.9h5.4c-.2 1.3-1.6 3.8-5.4 3.8-3.2 0-5.9-2.7-5.9-6s2.7-6 5.9-6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.4 14.6 2.4 12 2.4 6.7 2.4 2.4 6.7 2.4 12s4.3 9.6 9.6 9.6c5.5 0 9.2-3.9 9.2-9.4 0-.6-.1-1.1-.2-1.6H12z"/></svg>';
+/* Google's own sign-in button and One Tap, so Google's screen names coffeeko.in (not the Supabase address).
+   If Google's script can't load, the plain "Continue with Google" button above still works. */
+let gisP=null;
+const loadGIS=()=>gisP||(gisP=new Promise((ok,no)=>{if(window.google?.accounts?.id)return ok();const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;s.onload=()=>ok();s.onerror=()=>{gisP=null;no(new Error('gis'));};document.head.appendChild(s);setTimeout(()=>no(new Error('timeout')),8000);}));
+async function makeNonce(){const raw=btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24))));const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(raw));return{raw,hashed:[...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('')};}
+async function mountGoogle(btn){
+  try{
+    await loadGIS();const n=await makeNonce();if(!btn.isConnected)return;
+    google.accounts.id.initialize({client_id:API.googleClientId,nonce:n.hashed,use_fedcm_for_prompt:true,itp_support:true,context:authMode==='signup'?'signup':'signin',
+      callback:async r=>{try{await API.signInWithGoogleToken(r.credential,n.raw);me=await API.currentUser();$('#auth').innerHTML='';await loadUser();}catch(e){toast(errMsg(e));if($('#aGoogle'))mountGoogle($('#aGoogle'));}}});
+    const box=document.createElement('div');box.className='gsi-box';btn.replaceWith(box);
+    google.accounts.id.renderButton(box,{type:'standard',theme:'filled_black',size:'large',shape:'pill',text:'continue_with',logo_alignment:'center',width:Math.min(400,Math.max(240,box.clientWidth||320))});
+    /* One Tap only once the sign-in card is on screen, not over the story */
+    const io=new IntersectionObserver(es=>{if(es.some(x=>x.isIntersecting)){io.disconnect();google.accounts.id.prompt();}},{threshold:.5});io.observe(box);
+  }catch(e){/* keep the plain button */}
+}
 function showAuth(mode){
   authMode=mode||authMode;document.body.classList.remove('signed-in');
   const L=SITE.login||{};
@@ -974,6 +990,7 @@ function showAuth(mode){
    <div class="auth-alt">${F.alt}</div>${authMode==='signup'?'<p class="muted fine" style="margin-top:16px">By creating an account you agree to how we use your data, explained in our <a href="privacy.html" target="_blank" rel="noopener">privacy page</a>.</p>':''}</form></div>`;
   box.querySelectorAll('[data-auth]').forEach(b=>b.onclick=e=>{e.preventDefault();box.dataset.touched=1;showAuth(b.dataset.auth);});
   const gg=$('#aGoogle');if(gg)gg.onclick=async()=>{gg.disabled=true;try{await API.signInWithGoogle();}catch(e){gg.disabled=false;toast(errMsg(e));}};
+  if(gg&&API.googleClientId)mountGoogle(gg);
   const rs=$('#aResend');if(rs)rs.onclick=()=>resendConfirm(rs,$('#aResendMsg'),box.dataset.resend);
   const f=$('#authForm');
   f.onsubmit=async e=>{

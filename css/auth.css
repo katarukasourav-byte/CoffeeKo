@@ -23,3 +23,5 @@ body:not(.signed-in) .store-note{display:none}
 .spamtip{margin:14px 0 18px;padding:12px 14px;border-radius:14px;background:#17130E;border:1px solid #2E261C;font-size:14px;line-height:1.55;color:#E6D3BC}
 .spamtip b{color:var(--ink)}
 #aResend,#aResend2{margin-top:4px}
+
+.gsi-box{display:flex;justify-content:center;min-height:44px;width:100%}

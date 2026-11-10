@@ -43,6 +43,9 @@ const API = {
     if (!sb) return false;
     try { const r = await fetch(S.supabaseUrl + '/auth/v1/settings', { headers: { apikey: S.supabaseAnonKey } }); const j = await r.json(); return !!j.external?.google; } catch (e) { return false; }
   },
+  googleClientId: S.googleClientId || '',
+  /* Google's own button / One Tap on coffeeko.in: Google hands us a signed token, Supabase checks it */
+  async signInWithGoogleToken(token, nonce) { const { error } = await sb.auth.signInWithIdToken({ provider: 'google', token, nonce }); fail(error); },
   async signInWithGoogle() { const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + '/#profile' } }); fail(error); },
   async signOut() { if (sb) await sb.auth.signOut(); },
   async resetPassword(email) { const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname + '#reset' }); fail(error); },
