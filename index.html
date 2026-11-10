@@ -30,6 +30,11 @@
 <link rel="stylesheet" href="css/auth.css">
 </head>
 <body>
+<script>
+/* Installed app + signed in before: skip the bean story and reopen the dashboard where you left off */
+(function(){try{var app=matchMedia('(display-mode: standalone)').matches||navigator.standalone||/[?&]source=app/.test(location.search);
+  if(app&&localStorage.getItem('ck-has-account')==='1'&&!location.hash)document.documentElement.classList.add('app-resume');}catch(e){}})();
+</script>
 <header class="bar on-story" id="bar">
   <a class="brand" href="#top" aria-label="CoffeeKo home">CoffeeKo</a>
   <nav aria-label="Main">

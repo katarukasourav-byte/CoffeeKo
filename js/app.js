@@ -40,7 +40,7 @@ async function init(){
     if(ev==='SIGNED_OUT'){location.reload();}
   });
   if(location.hash==='#reset'&&!API.demo){showAuth('newpass');return;}
-  if(!me){showAuth(knownDevice()?'signin':'signup');if(/^#(profile|explore|journal|shelf|app)$/.test(location.hash))setTimeout(()=>scrollTo(0,document.getElementById('app').offsetTop),60);return;}
+  if(!me){document.documentElement.classList.remove('app-resume');showAuth(knownDevice()?'signin':'signup');if(/^#(profile|explore|journal|shelf|app)$/.test(location.hash))setTimeout(()=>scrollTo(0,document.getElementById('app').offsetTop),60);return;}
   await loadUser();
 }
 async function loadUser(){
@@ -52,7 +52,12 @@ async function loadUser(){
     state.prefs=v.prefs||null;state.settings=Object.assign(state.settings,v.settings||{});state.explore=v.explore||null;
     state.journal=(v.journal||[]).sort((a,b)=>b.createdAt-a.createdAt);state.shelf=v.shelf||[];
   }catch(e){console.warn(e);toast('Couldn’t load your coffee. Refresh to try again.');}
+  /* Quiz taken before signing up: save it to the new account */
+  try{const pend=JSON.parse(localStorage.getItem(PENDING)||'null');if(pend&&!state.prefs){state.prefs=pend;saveProfile();setTimeout(()=>toast('Quiz answers saved'),800);}localStorage.removeItem(PENDING);}catch(e){}
   migrate();renderAll();route();loadCatalog();
+  /* App reopened: go straight to the section used last (Personality the first time) */
+  if(document.documentElement.classList.contains('app-resume')){let id='profile';try{id=localStorage.getItem('ck-last-section')||'profile';}catch(e){}
+    const t=document.getElementById(id)||document.getElementById('profile');requestAnimationFrame(()=>jumpTo(t));}
 }
 async function loadCatalog(force){
   if(force)try{sessionStorage.removeItem('ck-catalog-v1');}catch(e){}
@@ -160,7 +165,7 @@ function initNav(){
   /* Tabs jump straight to their section (no long scroll past the others), with a quick fade-in */
   links.forEach(l=>l.addEventListener('click',e=>{const t=document.getElementById(l.getAttribute('href').slice(1));if(!t)return;e.preventDefault();jumpTo(t);
     links.forEach(a=>a.toggleAttribute('aria-current',a===l));try{history.replaceState(history.state,'','#'+t.id);}catch(_){}}));
-  const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){links.forEach(a=>a.toggleAttribute('aria-current',a.getAttribute('href')==='#'+en.target.id));}});},{rootMargin:'-45% 0px -50% 0px'});
+  const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){links.forEach(a=>a.toggleAttribute('aria-current',a.getAttribute('href')==='#'+en.target.id));try{localStorage.setItem('ck-last-section',en.target.id);}catch(_){}}});},{rootMargin:'-45% 0px -50% 0px'});
   SECS.forEach(id=>{const el=document.getElementById(id);if(el)io.observe(el);});
 }
 function jumpTo(t){const y=t.getBoundingClientRect().top+scrollY-(parseFloat(getComputedStyle(t).scrollMarginTop)||0);
@@ -239,7 +244,7 @@ function renderProfile(){
        <div class="legend"><span><i class="lg-pick"></i>Your quiz answers</span><span><i class="lg-liked"></i>Coffees you liked</span></div></div>
      <p class="tid-basis">Based on ${r.length} rating${r.length===1?'':'s'}${p?` and your quiz, which now counts for ${quizShare}%`:''}. It updates every time you rate a coffee.</p>
      ${shapers.length?`<div class="shapers"><span class="muted">Shaped most by</span>${shapers.map(e=>`<button class="chip" data-act="open" data-id="${e.id}"><i class="sd v-${e.verdict}"></i>${esc(e.name)}</button>`).join('')}</div>`:''}
-     <div class="actions"><button class="btn ghost small" data-act="types">All personalities</button><button class="btn ghost small" data-act="bulk">Add past coffees</button><button class="btn quiet small" data-act="quiz">Retake quiz</button></div>
+     <div class="actions"><button class="btn accent small" data-act="sharecard">Share my personality</button><button class="btn ghost small" data-act="types">All personalities</button><button class="btn ghost small" data-act="bulk">Add past coffees</button><button class="btn quiet small" data-act="quiz">Retake quiz</button></div>
    </div>
    <div class="tid-r">${radar(T)}</div>
   </div>`;
@@ -336,6 +341,7 @@ function openCoffee(p){
    </div>
    <p class="muted fine">From ${esc(p.roaster)}’s ${p.source==='web'?'website':'shop'}${p.updatedAt?', checked '+fmtD(new Date(p.updatedAt)):''}. “Not stated” means the roaster doesn’t say. Taste scores are estimated from the roaster’s description.</p>
    <div class="sheet-foot"><span class="actions">${saved?'':`<button class="btn quiet small" id="cdHide">Not for me</button>`}</span><span class="actions"><button class="btn ghost" id="cdRate">I’ve tried it: rate it</button><button class="btn accent" id="cdSave" ${saved?'disabled':''}>${saved?'Saved to try':'Save to try'}</button></span></div>`);
+  sheet.querySelectorAll('.cd-gal img').forEach((im,i)=>{im.style.cursor='zoom-in';im.onclick=()=>openViewer(imgs,i);});
   const sv=$('#cdSave');sv.onclick=()=>{savePick(p);sv.textContent='Saved to try';sv.disabled=true;};
   const hd=$('#cdHide');if(hd)hd.onclick=()=>{hidePick(p);closeSheet();toast('Hidden from Explore');};
   $('#cdRate').onclick=()=>{const ex=inJournal(p);draft=ex||Object.assign(entryFrom(p,null),{_new:true});renderRate();};
@@ -399,10 +405,15 @@ function jcard(e){
     <span class="vtag v-${e.status==='saved'?'saved':e.status==='torate'?'torate':e.verdict}">${e.status==='saved'?'Saved to try':e.status==='torate'?'To rate':VL[e.verdict]||'Rated'}</span></span></button>`;
 }
 function renderJournal(){keepScroll($('#journal-body'),renderJournal0);}
+/* Journal can be seen as a list or as the Coffee Atlas map (js/atlas.js, loaded only when opened) */
+let jview=(()=>{try{return localStorage.getItem('ck-jview')||'list';}catch(e){return'list';}})();
+const atlasCtx=()=>({state,catById,match,target,esc,money,openSheet,head});
 function renderJournal0(){
   const R=state.journal.filter(e=>e.status==='rated'),S=state.journal.filter(e=>e.status==='saved'),Q=toRate();
   const jl=document.querySelector('.subnav a[href="#journal"]');if(jl)jl.innerHTML=(SITE.sections?.journal?.tab||'Journal')+(Q.length?` <span class="dot">${Q.length}</span>`:'');
-  $('#journal-body').innerHTML=(Q.length?`<div class="rail-h row-h"><h4>To rate · ${Q.length}</h4><button class="btn accent small" data-act="rate-deck">Rate them now</button></div><div class="rail jrail">${Q.map(jcard).join('')}</div>`:'')+`
+  const seg=`<div class="seg-tabs jview" role="group" aria-label="Journal view"><button data-act="jview" data-v="list" aria-pressed="${jview==='list'}">List</button><button data-act="jview" data-v="atlas" aria-pressed="${jview==='atlas'}">Atlas</button></div>`;
+  if(jview==='atlas'){$('#journal-body').innerHTML=seg+'<div id="atlasBox"></div>';import('./atlas.js').then(m=>m.renderAtlas($('#atlasBox'),atlasCtx())).catch(()=>{$('#atlasBox').innerHTML='<p class="muted">The map couldn’t load. Try again in a moment.</p>';});return;}
+  $('#journal-body').innerHTML=seg+(Q.length?`<div class="rail-h row-h"><h4>To rate · ${Q.length}</h4><button class="btn accent small" data-act="rate-deck">Rate them now</button></div><div class="rail jrail">${Q.map(jcard).join('')}</div>`:'')+`
    <div class="rail-h"><h4>Tried · ${R.length}</h4></div>
    <div class="rail jrail"><button class="jcard add" data-act="scan"><span class="jimg plus">+</span><span class="jtxt"><b>Scan a bag</b><span>Rate what you’re drinking</span></span></button><button class="jcard add" data-act="bulk"><span class="jimg plus">⧉</span><span class="jtxt"><b>Add past coffees</b><span>Several photos at once</span></span></button>${R.map(jcard).join('')}</div>
    <div class="rail-h"><h4>Saved to try · ${S.length}</h4></div>
@@ -453,6 +464,7 @@ function renderShelf0(){
    ${list.map(([b,f],idx)=>`<article class="scard ${idx===firstIdx&&list.length>1?'first':''}" data-id="${b.id}">
      ${idx===firstIdx&&list.length>1?'<span class="flag">Brew this first</span>':''}
      <button class="s-open" data-s="view" aria-label="Open ${esc(b.name)}">${freshRing(f,128)}</button>
+     ${(()=>{const ph=photosOfBag(b)[0];return ph?`<span class="s-photo" data-act="bagphoto" data-id="${b.id}" role="button" aria-label="See photos of ${esc(b.name)}" style="background-image:url('${esc(ph.startsWith('data:')?ph:imgW(ph,200))}')"></span>`:'';})()}
      <h4>${esc(b.name)}</h4><span class="muted">${esc(cap(b.roastLevel))} · roasted ${fmtD(f.rd)}</span>
      <div class="s-left"><b>${Math.round(b.leftG)}</b> g left <span class="muted">· ~${f.cups} cups</span></div>
      <div class="gauge"><i style="width:${Math.min(100,b.leftG/b.bagG*100)}%"></i></div>
@@ -464,7 +476,7 @@ function renderShelf0(){
   document.querySelectorAll('#shelf-body .scard[data-id]').forEach(card=>{
     const b=state.shelf.find(x=>x.id===card.dataset.id);
     card.querySelector('[data-s=view]').onclick=ev=>{ev.stopPropagation();openBagView(b);};
-    card.style.cursor='pointer';card.onclick=ev=>{if(!ev.target.closest('[data-s=cup]'))openBagView(b);};
+    card.style.cursor='pointer';card.onclick=ev=>{if(!ev.target.closest('[data-s=cup],[data-act=bagphoto]'))openBagView(b);};
     card.querySelector('[data-s=cup]').onclick=ev=>{ev.stopPropagation();openBrew(b);};
   });
 }
@@ -494,6 +506,9 @@ function entryOfBag(b){
     .sort((x,y)=>y.f-x.f||((y.j.status==='rated')-(x.j.status==='rated')));
   return hits.length?hits[0].j:null;
 }
+/* All photos for a coffee: your own bag photo first, then the shop's photos */
+function photosOf(e){if(!e)return[];const c=e.catalogId&&catById.get(e.catalogId);return[...new Set([e.photo,...(c?c.images:[]),e.image].filter(Boolean))];}
+function photosOfBag(b){const e=entryOfBag(b);const own=photosOf(e);return own.length?own:[b.image].filter(Boolean);}
 function openPastBags(){
   const P=state.shelf.filter(b=>b.leftG<=0).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
   openSheet(`${head('Past bags')}<h3>Past bags</h3><p class="lead">Coffees you’ve finished. Open one to refill it, or remove it from your shelf.</p>
@@ -511,7 +526,8 @@ function openBrewLog(){
 }
 function openBagView(b){
   const f=fresh(b);const[adv,cls]=advice(b,f);const span=f.peak+30;const pct=d=>Math.max(0,Math.min(100,d/span*100));
-  openSheet(`${head('On your shelf')}<div class="bv-top">${freshRing(f,150)}<div><h3>${esc(b.name)}</h3><p class="muted">${esc(cap(b.roastLevel))} roast · roasted ${fmtD(f.rd)}${b.openedDate?' · opened '+fmtD(parseD(b.openedDate)):''}</p></div></div>
+  const bph=photosOfBag(b);
+  openSheet(`${head('On your shelf')}<div class="bv-top">${freshRing(f,150)}<div>${bph.length?`<span class="s-photo big" data-act="bagphoto" data-id="${b.id}" role="button" aria-label="See photos" style="background-image:url('${esc(bph[0].startsWith('data:')?bph[0]:imgW(bph[0],300))}')"></span>`:''}<h3>${esc(b.name)}</h3><p class="muted">${esc(cap(b.roastLevel))} roast · roasted ${fmtD(f.rd)}${b.openedDate?' · opened '+fmtD(parseD(b.openedDate)):''}</p></div></div>
    <div class="tl-wrap"><div class="timeline"><span class="tl-rest" style="width:${pct(f.rest)}%"></span><span class="tl-peak" style="width:${pct(f.peak)-pct(f.rest)}%"></span><span class="tl-fade" style="width:${100-pct(f.peak)}%"></span></div><span class="tl-today" style="left:${pct(f.age)}%" data-l="Today"></span></div>
    <div class="tl-legend"><span>Resting</span><span>Best</span><span>Fading</span></div>
    <p class="advice ${cls}">${adv}</p>
@@ -562,11 +578,45 @@ function hidePick(p){const h=new Set(state.settings.hidden||[]);h.add(p.id||keyO
 /* =================== sheet =================== */
 const wrap=$('#sheetWrap'), sheet=$('#sheet');
 let lastFocus=null;
+/* ---------- Full-screen photo viewer: swipe between photos, pinch or double-tap to zoom, Back or × to close ---------- */
+let viewer=null;
+function openViewer(urls,start){
+  urls=(urls||[]).filter(Boolean);if(!urls.length)return;
+  const v=document.createElement('div');v.className='viewer';v.setAttribute('role','dialog');v.setAttribute('aria-label','Photos');
+  v.innerHTML=`<div class="v-track">${urls.map(u=>`<div class="v-slide"><img src="${esc(imgW(u,1600))}" alt="" draggable="false"></div>`).join('')}</div>
+   <button class="v-x" aria-label="Close photos">×</button>${urls.length>1?`<div class="v-dots">${urls.map((_,i)=>`<i data-i="${i}"></i>`).join('')}</div>`:''}<p class="v-hint">Pinch or double-tap to zoom</p>`;
+  document.body.appendChild(v);viewer=v;pushStep('viewer');
+  const track=v.querySelector('.v-track'),dots=[...v.querySelectorAll('.v-dots i')];
+  const setDot=()=>{const i=Math.round(track.scrollLeft/track.clientWidth);dots.forEach((d,k)=>d.classList.toggle('on',k===i));};
+  track.scrollLeft=(start||0)*track.clientWidth;setDot();track.addEventListener('scroll',()=>requestAnimationFrame(setDot),{passive:true});
+  v.querySelector('.v-x').onclick=()=>closeViewer();
+  v.querySelectorAll('.v-slide').forEach(slide=>zoomable(slide,slide.querySelector('img'),track));
+  setTimeout(()=>v.classList.add('on'),10);
+}
+function closeViewer(fromPop){if(!viewer)return;const v=viewer;viewer=null;v.classList.remove('on');setTimeout(()=>v.remove(),200);if(!fromPop&&history.state&&history.state.ck==='viewer')history.back();}
+/* Zoom: double-tap toggles 2.5×, two fingers pinch, one finger pans while zoomed */
+function zoomable(box,img,track){
+  let s=1,x=0,y=0,lastTap=0;const pts=new Map();let start=null;
+  const apply=()=>{img.style.transform=`translate(${x}px,${y}px) scale(${s})`;box.classList.toggle('zoomed',s>1.01);track.style.overflowX=s>1.01?'hidden':'';};
+  const clamp=()=>{const r=box.getBoundingClientRect(),mx=r.width*(s-1)/2,my=r.height*(s-1)/2;x=Math.max(-mx,Math.min(mx,x));y=Math.max(-my,Math.min(my,y));};
+  const zoomAt=(cx,cy,ns)=>{const r=box.getBoundingClientRect(),ox=cx-r.left-r.width/2,oy=cy-r.top-r.height/2;x=(x-ox)*(ns/s)+ox;y=(y-oy)*(ns/s)+oy;s=ns;if(s<=1){s=1;x=0;y=0;}clamp();apply();};
+  box.addEventListener('pointerdown',e=>{pts.set(e.pointerId,{x:e.clientX,y:e.clientY});if(s>1.01||pts.size===2)box.setPointerCapture(e.pointerId);
+    if(pts.size===2){const[a,b]=[...pts.values()];start={d:Math.hypot(a.x-b.x,a.y-b.y),s,cx:(a.x+b.x)/2,cy:(a.y+b.y)/2};}else start={px:e.clientX,py:e.clientY,x,y};});
+  box.addEventListener('pointermove',e=>{if(!pts.has(e.pointerId))return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pts.size===2&&start&&start.d){const[a,b]=[...pts.values()];const ns=Math.max(1,Math.min(5,start.s*Math.hypot(a.x-b.x,a.y-b.y)/start.d));zoomAt(start.cx,start.cy,ns);}
+    else if(pts.size===1&&s>1.01&&start&&start.px!=null){x=start.x+(e.clientX-start.px);y=start.y+(e.clientY-start.py);clamp();apply();}});
+  const up=e=>{pts.delete(e.pointerId);if(pts.size===1){const p=[...pts.values()][0];start={px:p.x,py:p.y,x,y};}else if(!pts.size)start=null;};
+  box.addEventListener('pointerup',e=>{const now=Date.now();if(pts.size===1&&now-lastTap<300){zoomAt(e.clientX,e.clientY,s>1.01?1:2.5);lastTap=0;}else lastTap=now;up(e);});
+  box.addEventListener('pointercancel',up);
+  box.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e.clientX,e.clientY,Math.max(1,Math.min(5,s*(e.deltaY<0?1.15:0.87))));},{passive:false});
+}
+addEventListener('keydown',e=>{if(e.key==='Escape'&&viewer){e.stopImmediatePropagation();closeViewer();}},true);
 /* Phone back gesture / browser Back: an open window or the "See all" list is a step in the
    browser's history, so Back closes it instead of leaving the site. */
 let afterClose=null;
 function pushStep(kind){try{history.pushState({ck:kind},'');}catch(e){}}
 addEventListener('popstate',()=>{
+  if(viewer){closeViewer(true);return;}
   if(wrap.classList.contains('on')){doClose();const f=afterClose;afterClose=null;f&&f();return;}
   if(xAll){xAll=false;renderExplore();document.getElementById('explore').scrollIntoView();}
 });
@@ -576,7 +626,7 @@ if(window.visualViewport){const vv=visualViewport;const fit=()=>{if(!wrap.classL
   sheet.addEventListener('focusin',e=>{if(e.target.matches('input,textarea,select'))setTimeout(()=>{fit();e.target.scrollIntoView({block:'center',behavior:'smooth'});},300);});
   new MutationObserver(fit).observe(wrap,{attributes:true,attributeFilter:['class']});}
 function openSheet(html){if(!wrap.classList.contains('on'))pushStep('sheet');lastFocus=document.activeElement;sheet.innerHTML=html;wrap.classList.add('on');document.body.style.overflow='hidden';sheet.scrollTop=0;setTimeout(()=>{const f=sheet.querySelector('[autofocus]')||sheet.querySelector('.x');f&&f.focus();},30);}
-function doClose(){wrap.classList.remove('on');sheet.innerHTML='';document.body.style.overflow='';lastFocus&&lastFocus.focus&&lastFocus.focus();}
+function doClose(){wrap.classList.remove('on');sheet.innerHTML='';document.body.style.overflow='';lastFocus&&lastFocus.focus&&lastFocus.focus({preventScroll:true});}
 function closeSheet(then){if(!wrap.classList.contains('on')){then&&then();return;}if(history.state&&history.state.ck==='sheet'){afterClose=then||null;history.back();}else{doClose();then&&then();}}
 wrap.addEventListener('click',e=>{if(e.target===wrap)closeSheet();});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&wrap.classList.contains('on'))closeSheet();});
@@ -587,7 +637,18 @@ sheet.addEventListener('click',e=>{const c=e.target.closest('[data-close]');if(!
 /* ---------- quiz ---------- */
 const QUIZ=SITE.quiz.map(q=>({k:q.key,q:q.q,lead:q.lead,multi:!!q.multi,max:q.max,opts:q.options}));
 let qi=0, qa={};
+function showGuestResult(){
+  const P=personality(target());
+  openSheet(`${head('Your Coffee Personality')}<div class="guest-res"><span class="kicker">You are</span><h2 class="tid-name">${esc(P.name)}</h2>
+   <p class="tid-desc">${esc(palateSentence())} ${esc(P.text)}</p>${P.look?`<p class="tid-look"><span>You tend to enjoy</span>${esc(P.look)}</p>`:''}
+   <div class="actions"><button class="btn accent big" id="grSave">Save it – create a free account</button><button class="btn ghost" data-act="sharecard">Share my personality</button></div>
+   <p class="muted fine">Free. Then rate the coffees you drink and get matched to real coffees from specialty roasters.</p></div>`);
+  $('#grSave').onclick=()=>closeSheet(()=>{showAuth(knownDevice()?'signin':'signup');setTimeout(()=>{scrollTo({top:document.getElementById('app').offsetTop,behavior:'instant'});const f=$('#aName')||$('#aEmail');f&&f.focus({preventScroll:true});},80);});
+}
 function openQuiz(){qa=JSON.parse(JSON.stringify(state.prefs||{}));qi=0;renderQuiz();}
+/* Visitors can take the quiz before having an account; the answers are kept on this device and saved to the account after sign-up */
+const PENDING='ck-pending-prefs';
+const signedIn=()=>document.body.classList.contains('signed-in');
 function renderQuiz(){
   const Q=QUIZ[qi];const val=qa[Q.k];
   const sel=v=>Q.multi?(val||[]).includes(v):val===v;
@@ -608,6 +669,7 @@ function nextQ(){
   if(qi<QUIZ.length-1){qi++;renderQuiz();return;}
   qa.sweetness=qa.sweetness||((qa.flavours||[]).some(f=>['caramel','chocolate','fruity'].includes(f))?4:3);
   qa.country=qa.country||'India';
+  if(!signedIn()){try{localStorage.setItem(PENDING,JSON.stringify(qa));}catch(e){}state.prefs=qa;return showGuestResult();}
   const first=!state.settings.bulkOffered&&!state.journal.length;
   state.prefs=qa;state.settings.bulkOffered=true;saveProfile();renderAll();toast('Your palate is set');
   if(first)openBulk(true);else{closeSheet();document.getElementById('profile').scrollIntoView({behavior:'smooth'});}
@@ -686,7 +748,7 @@ function readDetails(e){
 }
 function coffeeHeader(e){
   const ph=e.photo||imgW(e.image,300);
-  return`<div class="coffee-head"><span class="thumb" ${ph?`style="background-image:url('${esc(ph)}')"`:''}>${ph?'':beanIcon()}</span>
+  return`<div class="coffee-head"><span class="thumb${ph?' zoomable" data-act="photos" data-id="'+esc(e.id||'')+'" role="button" aria-label="See photos" tabindex="0':''}" ${ph?`style="background-image:url('${esc(ph)}')"`:''}>${ph?'':beanIcon()}</span>
    <div><h3>${esc(e.name||'Unidentified coffee')}</h3><div class="by">${esc([e.roaster,e.origin].filter(Boolean).join(' · '))}</div></div></div>
    <div class="facts">${e.roastLevel?`<span class="chip static">${esc(cap(e.roastLevel))} roast</span>`:''}${e.process?`<span class="chip static">${esc(e.process)}</span>`:''}${(e.tastingNotes||[]).map(n=>`<span class="chip static">${esc(n)}</span>`).join('')}</div>
    ${e.packagingSays?`<p class="bagsays"><span class="src">${e.source==='packaging'?'From the bag':e.source==='knowledge'?'AI summary':e.source==='roaster'?'From the roaster':'Bag + AI'}</span>${esc(e.packagingSays)}</p>`:''}
@@ -883,6 +945,8 @@ function applyContent(){
   t('footer>span',SITE.footer);
 }
 let authMode='signin';
+let googleOn=null;API.googleEnabled().then(v=>{googleOn=v;if(v&&!document.body.classList.contains('signed-in')&&['signin','signup'].includes(authMode))showAuth(authMode);});
+const GOOGLE_G='<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#EA4335" d="M12 10.2v3.9h5.4c-.2 1.3-1.6 3.8-5.4 3.8-3.2 0-5.9-2.7-5.9-6s2.7-6 5.9-6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.4 14.6 2.4 12 2.4 6.7 2.4 2.4 6.7 2.4 12s4.3 9.6 9.6 9.6c5.5 0 9.2-3.9 9.2-9.4 0-.6-.1-1.1-.2-1.6H12z"/></svg>';
 function showAuth(mode){
   authMode=mode||authMode;document.body.classList.remove('signed-in');
   const L=SITE.login||{};
@@ -901,7 +965,7 @@ function showAuth(mode){
     newpassword:'<div class="field"><label for="aPass">Password</label><input id="aPass" type="password" autocomplete="new-password" minlength="8" required><span class="muted">At least 8 characters.</span></div>'
   };
   box.innerHTML=`<div class="auth-wrap"><div class="auth-intro"><span class="kicker">${esc(SITE.brand)}</span><h2>${esc(L.title||'')}</h2><p>${esc(L.sub||'')}</p></div>
-   <form class="auth-card" id="authForm" novalidate data-x="1">${authMode==='signin'||authMode==='signup'?`<div class="auth-tabs" role="tablist"><button type="button" role="tab" data-auth="signin" aria-selected="${authMode==='signin'}">Sign in</button><button type="button" role="tab" data-auth="signup" aria-selected="${authMode==='signup'}">Create account</button></div>`:''}<h3>${F.h}</h3>${authMode==='sent'?`<p class="muted">${esc(box.dataset.msg||'')}</p>
+   <form class="auth-card" id="authForm" novalidate data-x="1">${authMode==='signin'||authMode==='signup'?`<div class="auth-tabs" role="tablist"><button type="button" role="tab" data-auth="signin" aria-selected="${authMode==='signin'}">Sign in</button><button type="button" role="tab" data-auth="signup" aria-selected="${authMode==='signup'}">Create account</button></div>`:''}<h3>${F.h}</h3>${googleOn&&(authMode==='signin'||authMode==='signup')?`<button type="button" class="btn google" id="aGoogle">${GOOGLE_G}<span>Continue with Google</span></button><div class="or"><span>or with email</span></div>`:''}${authMode==='sent'?`<p class="muted">${esc(box.dataset.msg||'')}</p>
      <div class="spamtip"><b>Not in your inbox after a minute?</b> Check your <b>Spam</b> or <b>Promotions</b> folder. Yahoo, Outlook and Hotmail often file new senders there. If you find it, mark it “Not spam” so the next emails arrive normally.</div>
      ${box.dataset.resend?`<button class="btn ghost" type="button" id="aResend">Resend the email</button><p class="status" id="aResendMsg"></p>`:''}`:''}
    ${F.fields.map(f=>field[f]).join('')}
@@ -909,6 +973,7 @@ function showAuth(mode){
    ${F.btn?`<button class="btn accent big" style="width:100%" type="submit">${F.btn}</button>`:''}
    <div class="auth-alt">${F.alt}</div>${authMode==='signup'?'<p class="muted fine" style="margin-top:16px">By creating an account you agree to how we use your data, explained in our <a href="privacy.html" target="_blank" rel="noopener">privacy page</a>.</p>':''}</form></div>`;
   box.querySelectorAll('[data-auth]').forEach(b=>b.onclick=e=>{e.preventDefault();box.dataset.touched=1;showAuth(b.dataset.auth);});
+  const gg=$('#aGoogle');if(gg)gg.onclick=async()=>{gg.disabled=true;try{await API.signInWithGoogle();}catch(e){gg.disabled=false;toast(errMsg(e));}};
   const rs=$('#aResend');if(rs)rs.onclick=()=>resendConfirm(rs,$('#aResendMsg'),box.dataset.resend);
   const f=$('#authForm');
   f.onsubmit=async e=>{
@@ -950,12 +1015,17 @@ function goMyCoffee(){
 document.addEventListener('click',e=>{
   const a=e.target.closest('[data-act]');if(!a)return;
   const act=a.dataset.act;
-  if(a.tagName==='A'&&['mycoffee','coffee'].includes(act))e.preventDefault();
+  if(a.tagName==='A'&&['mycoffee','coffee','join'].includes(act))e.preventDefault();
+  if(act==='join'&&!signedIn()&&!API.demo)return openQuiz();
   if(act==='mycoffee'||act==='join')return goMyCoffee();
+  if(act==='sharecard')return shareCard();
+  if(act==='jview'){jview=a.dataset.v;try{localStorage.setItem('ck-jview',jview);}catch(e){}renderJournal0();return;}
   if(act==='contact'){if(a.tagName==='A')e.preventDefault();return openContact(a.dataset.topic);}
   if(act==='coffee'){const p=catById.get(a.dataset.id);if(p)openCoffee(p);return;}
   if(act==='types')return openTypes();
   if(act==='brewlog')return openBrewLog();
+  if(act==='photos'){const e=state.journal.find(x=>x.id===a.dataset.id)||draft;return openViewer(photosOf(e),0);}
+  if(act==='bagphoto'){const b=state.shelf.find(x=>x.id===a.dataset.id);return b&&openViewer(photosOfBag(b),0);}
   if(act==='install')return installApp();
   if(act==='pastbags')return openPastBags();
   if(act==='websearch')return webSearch();
@@ -1037,4 +1107,54 @@ function openAccount(){
 }
 $('#signOut').onclick=openAccount;
 init();
+
+/* ---------- Shareable Personality card: a 1080×1920 image sized for Instagram Stories ---------- */
+async function personalityCard(){
+  const T=target(),P=personality(T);
+  try{await Promise.all(['600 120px "Bricolage Grotesque"','italic 400 44px Literata','400 40px Literata'].map(f=>document.fonts.load(f)));}catch(e){}
+  const W=1080,H=1920,cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');
+  const ACC='#D4B08C',INK='#F3ECE4',DIM='#A99E93',UI='"Bricolage Grotesque", system-ui, sans-serif',ST='Literata, Georgia, serif';
+  const bg=g.createRadialGradient(W/2,560,60,W/2,700,1250);bg.addColorStop(0,'#2A1C13');bg.addColorStop(.55,'#120D0A');bg.addColorStop(1,'#060505');g.fillStyle=bg;g.fillRect(0,0,W,H);
+  const wrap=(t,x,y,max,lh,font,col,maxLines=6)=>{g.font=font;g.fillStyle=col;const w=String(t).split(/\s+/);let line='',n=0;
+    for(const word of w){const tst=line?line+' '+word:word;if(g.measureText(tst).width>max&&line){g.fillText(line,x,y);y+=lh;line=word;if(++n>=maxLines-1){break;}}else line=tst;}
+    if(line){g.fillText(line,x,y);y+=lh;}return y;};
+  g.textAlign='center';
+  g.font=`600 34px ${UI}`;g.fillStyle=ACC;g.letterSpacing='8px';g.fillText('COFFEEKO',W/2,220);g.letterSpacing='0px';
+  g.font=`italic 400 46px ${ST}`;g.fillStyle=DIM;g.fillText('My coffee personality is',W/2,350);
+  // name, shrinking to fit
+  let fs=124;g.font=`700 ${fs}px ${UI}`;while(g.measureText(P.name).width>W-140&&fs>70){fs-=4;g.font=`700 ${fs}px ${UI}`;}
+  g.fillStyle=INK;g.fillText(P.name,W/2,350+fs+40);
+  let y=350+fs+130;
+  y=wrap(P.text,W/2,y,W-200,60,`400 40px ${ST}`,'#D9CEC2',4)+20;
+  // flavour radar
+  const keys=Object.keys(FAM),cx=W/2,cy=y+265,R=195;let vals=keys.map(k=>Math.max(0,T.fams[k]||0));const mx=Math.max(...vals,0);vals=vals.map(v=>mx?Math.max(.22,v/mx):.22);
+  const pt=(i,f)=>{const a=-Math.PI/2+i*2*Math.PI/keys.length;return[cx+Math.cos(a)*R*f,cy+Math.sin(a)*R*f];};
+  g.strokeStyle='rgba(243,236,228,.14)';g.lineWidth=2;[.25,.5,.75,1].forEach(f=>{g.beginPath();keys.forEach((k,i)=>{const[x,yy]=pt(i,f);i?g.lineTo(x,yy):g.moveTo(x,yy);});g.closePath();g.stroke();});
+  keys.forEach((k,i)=>{const[x,yy]=pt(i,1);g.beginPath();g.moveTo(cx,cy);g.lineTo(x,yy);g.stroke();});
+  g.beginPath();keys.forEach((k,i)=>{const[x,yy]=pt(i,vals[i]);i?g.lineTo(x,yy):g.moveTo(x,yy);});g.closePath();
+  g.save();g.shadowColor='rgba(212,176,140,.6)';g.shadowBlur=40;g.fillStyle='rgba(212,176,140,.38)';g.fill();g.restore();g.strokeStyle=ACC;g.lineWidth=5;g.stroke();
+  keys.forEach((k,i)=>{const[x,yy]=pt(i,1.2);g.textAlign=Math.abs(x-cx)<10?'center':x>cx?'left':'right';g.font=`${vals[i]>.55?600:400} 32px ${UI}`;g.fillStyle=vals[i]>.55?INK:DIM;g.fillText(FAM[k].l.split(' &')[0],x,yy+11);});
+  g.textAlign='center';y=cy+R+115;
+  // taste bars
+  const bars=[['Roast',T.roastNum,'Light','Dark']].concat(ATTRS.slice(0,3).map(([k,n,lo,hi])=>[n,T.attrs[k],lo,hi])).filter(b=>b[1]!=null);
+  const bx=150,bw=W-300;
+  bars.slice(0,3).forEach(([n,v,lo,hi])=>{g.textAlign='left';g.font=`600 30px ${UI}`;g.fillStyle=INK;g.fillText(n,bx,y);g.textAlign='right';g.font=`400 26px ${UI}`;g.fillStyle=DIM;g.fillText(`${lo} · ${hi}`,bx+bw,y);
+    g.fillStyle='rgba(243,236,228,.12)';g.beginPath();g.roundRect(bx,y+18,bw,12,6);g.fill();g.fillStyle=ACC;g.beginPath();g.roundRect(bx,y+18,Math.max(14,bw*(v-1)/4),12,6);g.fill();y+=86;});
+  if(P.look){g.textAlign='center';y=wrap('Look for: '+P.look,W/2,y+10,W-220,46,`italic 400 32px ${ST}`,DIM,2);}
+  // footer
+  g.textAlign='center';g.fillStyle=ACC;g.beginPath();g.roundRect(W/2-330,H-260,660,110,55);g.fill();
+  g.font=`700 44px ${UI}`;g.fillStyle='#0B0807';g.fillText("What's yours?  coffeeko.in",W/2,H-190);
+  return{canvas:cv,P};
+}
+async function shareCard(){
+  toast('Making your card…');
+  const{canvas,P}=await personalityCard();
+  const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+  const file=new File([blob],'coffeeko-personality.png',{type:'image/png'});
+  const text=`My coffee personality is ${P.name}. What's yours? https://coffeeko.in`;
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text});return;}}catch(e){if(e.name==='AbortError')return;}
+  const url=URL.createObjectURL(blob);
+  openSheet(`${head('Share your personality')}<div class="card-preview"><img src="${url}" alt="Your Coffee Personality card"><p class="muted">Save the image, then add it to your Instagram Story.</p><div class="actions"><a class="btn accent big" href="${url}" download="coffeeko-personality.png">Download image</a></div></div>`);
+}
+window.__ckCard=personalityCard;
 })();

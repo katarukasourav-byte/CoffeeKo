@@ -50,7 +50,7 @@ async function verify(x, seen) {
       const r = await fetch(`${u.origin}/products/${m[1]}.json`, { headers: { 'user-agent': UA }, signal: AbortSignal.timeout(5000) });
       if (r.ok) {
         const p = (await r.json()).product;
-        Object.assign(item, { name: p.title, url: `${u.origin}/products/${p.handle}`, image: p.images?.[0]?.src || null, images: (p.images || []).slice(0, 4).map(i => i.src), raw: `Title: ${p.title}\nTags: ${p.tags}\nDescription: ${strip(p.body_html).slice(0, 1800)}`, ...packOf(p) });
+        Object.assign(item, { name: p.title, url: `${u.origin}/products/${p.handle}`, image: p.images?.[0]?.src || null, images: (p.images || []).slice(0, 8).map(i => i.src), raw: `Title: ${p.title}\nTags: ${p.tags}\nDescription: ${strip(p.body_html).slice(0, 1800)}`, ...packOf(p) });
         // Shopify doesn't say which currency; take it from the price the search saw, else leave the number out
         item.currency = CUR(x.price) || (/\.in$/.test(u.hostname) ? 'INR' : null);
         if (!item.currency) { item.price_inr = null; item.price_250 = null; }

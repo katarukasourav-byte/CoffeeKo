@@ -29,7 +29,7 @@ const API = {
     if (!sb) return { id: 'demo', email: 'demo@example.com', name: 'there' };
     const { data } = await sb.auth.getSession();
     user = data.session?.user || null;
-    return user ? { id: user.id, email: user.email, name: user.user_metadata?.name || '' } : null;
+    return user ? { id: user.id, email: user.email, name: user.user_metadata?.name || user.user_metadata?.full_name || '' } : null;
   },
   onAuthChange(cb) { if (sb) sb.auth.onAuthStateChange((event, session) => { user = session?.user || null; cb(event, user); }); },
   async signUp(email, password, name) {
@@ -38,6 +38,12 @@ const API = {
   },
   async resendConfirm(email) { const { error } = await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: location.origin + location.pathname + '#profile' } }); fail(error); },
   async signIn(email, password) { const { error } = await sb.auth.signInWithPassword({ email, password }); fail(error); },
+  /* Google sign-in shows only once Google is switched on in Supabase (Authentication → Sign In / Providers) */
+  async googleEnabled() {
+    if (!sb) return false;
+    try { const r = await fetch(S.supabaseUrl + '/auth/v1/settings', { headers: { apikey: S.supabaseAnonKey } }); const j = await r.json(); return !!j.external?.google; } catch (e) { return false; }
+  },
+  async signInWithGoogle() { const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + '/#profile' } }); fail(error); },
   async signOut() { if (sb) await sb.auth.signOut(); },
   async resetPassword(email) { const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname + '#reset' }); fail(error); },
   async updatePassword(password) { const { error } = await sb.auth.updateUser({ password }); fail(error); },
