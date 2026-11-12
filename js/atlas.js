@@ -1,7 +1,7 @@
 /* Coffee Atlas: a map of where your coffees come from, coloured by how much you liked them,
    the next origin to try, a zoom into each country's coffee regions, and how far your beans travelled.
    Map outlines: Natural Earth (public domain), India's official boundaries. Drawing: d3-geo (bundled in js/vendor). */
-import { geoEqualEarth, geoMercator, geoPath, geoCentroid, geoDistance, geoGraticule, geoBounds } from './vendor/geo.js';
+import { geoMercator, geoPath, geoCentroid, geoDistance, geoGraticule, geoBounds } from './vendor/geo.js';
 
 /* ---------- coffee countries: map name, words that point to it, and what its coffees are known for ---------- */
 const C = [
@@ -144,8 +144,11 @@ function compute(ctx) {
 
 /* ---------- world map ---------- */
 function worldSVG(F, A, W, H, { arcs = false } = {}) {
-  const box = { type: 'Feature', geometry: { type: 'MultiPoint', coordinates: [[-122, 32], [152, -30], [-122, -30], [152, 32]] } };
-  const p = geoEqualEarth().rotate([-15, 0]).fitExtent([[4, 4], [W - 4, H - 4]], box), pp = geoPath(p).digits(1);
+  /* Mercator (the shape people know from everyday maps), cropped to roughly 42°N–38°S around the coffee belt */
+  const box = { type: 'Feature', geometry: { type: 'MultiPoint', coordinates: [[-125, 42], [158, -38]] } };
+  const p = geoMercator().rotate([-15, 0]).fitWidth(W, box);
+  { const [[, by0], [, by1]] = geoPath(p).bounds(box); H = Math.round(by1 - by0); const [tx, ty] = p.translate(); p.translate([tx, ty - by0]); }
+  const pp = geoPath(p).digits(1);
   const nextSet = new Set(A.next.map(n => n.country)), growSet = new Set(C.map(c => c[0]));
   const yN = p([20, 23.44])[1], yS = p([20, -23.44])[1];
   let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="wmap" role="img" aria-label="Map of where your coffees come from"><defs><clipPath id="wclip"><rect width="${W}" height="${H}" rx="14"/></clipPath>
@@ -159,7 +162,7 @@ function worldSVG(F, A, W, H, { arcs = false } = {}) {
     const [fill, line] = COL[st], tap = cd || growSet.has(n);
     s += `<path d="${pp(f)}" fill="${fill}" stroke="${line}" stroke-width="${cd || st === 'next' ? 1.5 : .8}" stroke-linejoin="round" class="${st === 'loved' ? 'glow' : ''}${tap ? ' tap' : ''}" ${tap ? `data-country="${n}"` : ''}><title>${n}</title></path>`;
   }
-  { const [bx, by] = p([-8, -19]); s += `<text class="tropl belt" text-anchor="middle" x="${bx.toFixed(1)}" y="${by.toFixed(1)}">THE COFFEE BELT</text>`; }
+  { const [bx, by] = p([-14, -28]); s += `<text class="tropl belt" text-anchor="middle" x="${bx.toFixed(1)}" y="${by.toFixed(1)}">THE COFFEE BELT</text>`; }
   if (arcs) {
     for (const t of A.trips.slice(0, 40)) {
       const o = t.place.at || geoCentroid(F.find(f => f.properties.name === t.place.country) || { type: 'Point', coordinates: [0, 0] });
@@ -192,7 +195,7 @@ export async function renderAtlas(el, ctx) {
   const nC = Object.keys(A.countries).length, nR = Object.keys(A.regions).length;
   let km = 0; for (const t of A.trips) { const o = t.place.at || geoCentroid(F.find(f => f.properties.name === t.place.country)); const pts = [o, t.rAt, A.home].filter(Boolean); for (let i = 1; i < pts.length; i++) km += geoDistance(pts[i - 1], pts[i]) * 6371; t.km = 0; for (let i = 1; i < pts.length; i++) t.km += geoDistance(pts[i - 1], pts[i]) * 6371; }
   km = Math.round(km);
-  const W = Math.min(el.clientWidth || 358, 760), H = Math.round(W * (W < 600 ? .57 : .5));
+  const W0 = Math.min(el.clientWidth || 358, 760), W = W0 < 600 ? Math.round(W0 * 1.9) : W0, H = Math.round(W * .5);
   const fmt = n => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
   const legend = '<div class="legend">' + Object.entries(VLAB).map(([k, v]) => `<span><i style="background:${COL[k][0]};border-color:${COL[k][1]}"></i>${v}</span>`).join('') + (A.next.length ? '<span><i class="lnext"></i>Try next</span>' : '') + '</div>';
   const nx = A.next[0];
@@ -204,11 +207,16 @@ export async function renderAtlas(el, ctx) {
   const trips = [...A.trips].sort((a, b) => b.km - a.km);
   el.innerHTML = `<div class="atlas">
     <div class="a-stats"><div><b>${nC}</b><small>${nC === 1 ? 'country' : 'countries'}</small></div><div><b>${nR}</b><small>${nR === 1 ? 'region' : 'regions'}</small></div>${km ? `<div><b>${fmt(km)}</b><small>km travelled</small></div>` : ''}</div>
-    <div class="mapcard" id="atlasMap">${worldSVG(F, A, W - 14, H)}${legend}<p class="hint">Tap a country to zoom in</p></div>${empty}${nextCard}
+    <div class="mapcard" id="atlasMap"><div class="mscroll">${worldSVG(F, A, W - 14, H)}</div>${legend}<p class="hint">${W > W0 ? 'Swipe the map sideways · tap a country to zoom in' : 'Tap a country to zoom in'}</p></div>${empty}${nextCard}
     ${trips.length ? `<div class="journeys"><div class="rail-h"><h4>Bean journeys</h4></div><p class="lead">How far each bag travelled, from the farm through the roaster${A.home ? ' to you' : ''}${km > 40075 ? ` – ${(km / 40075).toFixed(1)}× around the Earth` : ''}.</p>
-    <div class="mapcard">${worldSVG(F, A, W - 14, H, { arcs: true })}</div>
+    <div class="mapcard"><div class="mscroll">${worldSVG(F, A, W - 14, H, { arcs: true })}</div></div>
     <div class="jl">${trips.slice(0, 8).map(t => `<button class="j" data-act="open" data-id="${esc(t.e.id)}"><i class="d ${t.e.verdict === 'dislike' ? 'no' : t.e.verdict}"></i><span><b>${esc([t.place.region, t.place.country === 'United States' ? 'Hawaii' : t.place.country].filter(Boolean).join(', '))}</b><small>${esc(t.e.name)}${t.roaster ? ' · ' + esc(t.roaster) : ''}</small></span><em>${fmt(Math.round(t.km))} km</em></button>`).join('')}</div>
     ${A.home ? '' : '<p class="muted fine">Journeys stop at the roaster: we couldn’t tell roughly where you are from this device.</p>'}</div>` : ''}</div>`;
+  /* start each map centred on roughly where you are (or on your favourite origin) */
+  if (W > W0) {
+    const fx = (() => { const at = A.home || (A.trips[0] && A.trips[0].place.at); if (!at) return .62; return Math.min(1, Math.max(0, (at[0] + 125) / 283)); })();
+    el.querySelectorAll('.mscroll').forEach(m => { m.scrollLeft = Math.max(0, fx * m.scrollWidth - m.clientWidth / 2); });
+  }
   el.querySelectorAll('[data-country]').forEach(x => x.addEventListener('click', ev => { ev.stopPropagation(); openCountry(x.dataset.country, ctx); }));
 }
 

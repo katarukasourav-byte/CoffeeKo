@@ -2,7 +2,8 @@
    CATALOGUE WORKER — shared by catalog-cron.mjs (runs every hour) and
    catalog-sync.mjs (manual trigger).
    1. sync:    reads one roaster's Shopify shop (products.json) and stores each
-               coffee's name, direct link, packaging photo, price and stock.
+               coffee's name, direct link, packaging photo, price and stock, and
+               what it is (kind: beans, ground, instant, drip bags, cold brew…).
    2. extract: asks Claude Haiku to read new or changed product descriptions
                and fill in origin, process, roast, notes and taste scores.
    ===================================================================== */
@@ -11,7 +12,8 @@ import ai from '../../config/ai.json';
 
 const env = k => process.env[k] || '';
 const UA = 'CoffeeKoCatalog/1.0 (+https://coffeeko.in)';
-const NOT_COFFEE = /(gift|subscription|subscribe|capsule|pod|cold ?brew|can |iced latte|bottle|matcha|tea\b|chai|hot chocolate|cocoa powder|cookie|merch|t-?shirt|tote|mug|cup\b|tumbler|grinder|kettle|dripper|v60|chemex|aeropress|french press|moka|filter paper|scale|machine|brewer|kit\b|workshop|training|course|event|tour|voucher|card\b|sampler box|instant|sachet|drip bag|easy pour|syrup|accessor|equipment|notebook|candle)/i;
+/* Instant, drip bags, cold brew (bags, concentrate, bottles/cans) are kept since Nov 2026 – see kindOf() */
+const NOT_COFFEE = /(gift|subscription|subscribe|capsule|\bpods?\b|iced latte|matcha|tea\b|chai|hot chocolate|cocoa powder|cookie|merch|t-?shirt|tote|mug|cup\b|tumbler|grinder|kettle|dripper|v60|chemex|aeropress|french press|moka|filter paper|scale|machine|brewer|kit\b|workshop|training|course|event|tour|voucher|card\b|sampler box|syrup|accessor|equipment|notebook|candle)/i;
 
 /* ---------- Supabase REST with the service role ---------- */
 async function db(path, opts = {}) {
@@ -28,6 +30,23 @@ const strip = h => String(h || '').replace(/<style[\s\S]*?<\/style>/gi, ' ').rep
 function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); }
 function grams(t) { const s = String(t || '').toLowerCase(); let m = s.match(/(?<![a-z0-9#.])(\d+(?:\.\d+)?)\s*kgs?\b/); if (m) return Math.round(+m[1] * 1000); m = s.match(/(?<![a-z0-9#.])(\d+(?:\.\d+)?)\s*(?:lbs?|pounds?)\b/); if (m) return Math.round(+m[1] * 453.6); m = s.match(/(?<![a-z0-9#.])(\d+(?:\.\d+)?)\s*(?:oz|ounces?)\b/); if (m) return Math.round(+m[1] * 28.35); m = s.match(/(?<![a-z0-9#.])(\d{2,4})\s*(?:g|gm|gms|grams?)\b/); return m && +m[1] >= 30 ? +m[1] : null; }
 
+/* What the product is. Same rules as ptype() in js/app.js and supabase/catalog_kinds.sql */
+function kindOf(p) {
+  const s = [p.title, p.product_type || ''].join(' ').toLowerCase();
+  if (/\binstant\b/.test(s)) return 'instant';
+  if (/cold ?brew/.test(s)) return /(bottle|\bcans?\b|ready to drink|\brtd\b|\d+ ?ml)/.test(s) ? 'rtd' : 'coldbrew';
+  if (/drip ?bag|pour ?over bag|dip ?bag|steep bag|easy pour/.test(s)) return 'dripbag';
+  if (/chicory|filter coffee|decoction/.test(s)) return 'filterblend';
+  if (/\bground\b|powder/.test(s) && !/whole ?bean/.test(s)) return 'ground';
+  return 'beans';
+}
+const COUNTED = ['instant', 'dripbag', 'coldbrew', 'rtd'];
+/* Servings in a pack: "10 x 12g", "pack of 5", "6 bottles", "20 sachets" */
+function countOf(t) {
+  const s = String(t || '').toLowerCase(); let m = s.match(/(\d{1,3})\s*(?:x|×)\s*\d/); if (m) return +m[1];
+  m = s.match(/(?:pack|box|set) of (\d{1,3})/); if (m) return +m[1];
+  m = s.match(/(\d{1,3})\s*(?:drip ?bags?|bags|sachets?|sticks?|pouches|packs?|bottles?|cans?|servings?|cups?)\b/); return m ? +m[1] : null;
+}
 /* Pick the pack to show: smallest whole-bean size, otherwise the smallest size. */
 function packOf(p) {
   const vs = (p.variants || []).map(v => ({ g: grams(v.title) || grams(p.title), price: Math.round(+v.price * 100) / 100, avail: v.available !== false, ground: /ground|grind|filter|espresso|french|moka|aeropress|pour/i.test(v.title) && !/whole/i.test(v.title) }))
@@ -87,10 +106,12 @@ export async function syncRoaster(name) {
   const prev = Object.fromEntries(existing.map(x => [x.id, x.content_hash]));
   const rows = coffees.map(p => {
     const raw = [`Roaster: ${R.name}, based in ${R.country || 'IN'}`, `Title: ${p.title}`, `Type: ${p.product_type || ''}`, `Tags: ${(p.tags || []).join(', ')}`, `Sizes: ${(p.variants || []).map(v => v.title).slice(0, 8).join(' | ')}`, `Description: ${strip(p.body_html).slice(0, 1800)}`].join('\n');
-    const h = hash(raw), id = domain.replace(/^www\./, '') + '/' + p.handle;
+    const h = hash(raw), id = domain.replace(/^www\./, '') + '/' + p.handle, kind = kindOf(p), pack = packOf(p);
+    if (COUNTED.includes(kind)) pack.price_250 = null;   // a per-250 g price means nothing for sachets or bottles
     const row = { id, roaster: R.name, name: p.title.trim(), url: `https://${domain}/products/${p.handle}`, image: p.images?.[0]?.src || null,
-      images: (p.images || []).slice(0, 8).map(i => i.src), product_type: p.product_type || null, raw, content_hash: h, source: 'shop', currency: R.currency || 'INR', roaster_country: R.country || 'IN', updated_at: new Date().toISOString(), ...packOf(p) };
-    if (prev[id] !== h) { row.extracted = false; row.is_coffee = true; row.tries = 0; }
+      images: (p.images || []).slice(0, 8).map(i => i.src), product_type: p.product_type || null, raw, content_hash: h, source: 'shop', currency: R.currency || 'INR', roaster_country: R.country || 'IN', updated_at: new Date().toISOString(), ...pack };
+    if (prev[id] !== h) { row.extracted = false; row.is_coffee = true; row.tries = 0; row.kind = kind;
+      row.pack_count = COUNTED.includes(kind) ? countOf(p.title) || countOf((p.variants || [])[0]?.title) || null : null; }   // every changed row gets the same keys (PostgREST bulk upsert)
     return row;
   });
   // Upsert in two groups so unchanged rows keep their AI-read details
@@ -106,7 +127,9 @@ export async function syncRoaster(name) {
 /* ---------- 2. AI reads descriptions ---------- */
 const PROMPT = items => `You are cataloguing specialty coffee sold online by roasters around the world. For each product below, read ONLY the text given.
 Rules:
-- isCoffee: true only for roasted coffee sold as beans or ground coffee in a bag (single origins and blends). false for equipment, gift boxes, subscriptions, capsules, drip bags, cold brew, tea, merchandise, sample sets of many coffees.
+- isCoffee: true for coffee you drink: beans or ground coffee in a bag (single origins and blends), instant coffee, drip bags, cold brew bags or concentrate, ready-to-drink cold brew, South Indian filter coffee (with or without chicory). false for equipment, gift boxes, subscriptions, capsules/pods, tea, merchandise, sample sets of many coffees, flavoured milk drinks.
+- kind: "beans" | "ground" | "instant" | "dripbag" | "coldbrew" (bags, packs or concentrate you make at home) | "rtd" (ready to drink: bottles, cans) | "filterblend" (South Indian filter coffee powder, with or without chicory).
+- packCount: for instant sachets, drip bags, cold brew packs and bottles: how many come in the smallest pack, if stated; else null.
 - origin (country), region, estate (farm/estate/cooperative), altitude, variety (e.g. SL795, Catuai), grade (e.g. AA, Plantation A, PB, Specialty 84+), roastLevel: fill ONLY if the text states or clearly implies it; otherwise null. Never guess an estate, altitude or variety. When the roaster is based in IN (India) and the coffee comes from a named Indian estate or region (Chikmagalur, Coorg, Araku, Baba Budangiri, Nilgiris, Wayanad, BR Hills, Malabar…) and no other country is named, origin is "India". For roasters elsewhere, never assume the origin is the roaster's own country.
 - process: the short name only, at most 3 words (e.g. "Washed", "Natural", "Honey", "Anaerobic natural", "Carbonic maceration", "Monsooned", "Yeast fermented", "Co-ferment"). processDetail: the longer description if the text gives one (fermentation hours, drying), else null.
 - notes: up to 5 tasting notes as written.
@@ -114,7 +137,7 @@ Rules:
 - blend: true if it is a blend of several coffees.
 - summary: one plain sentence (max 25 words) describing how it tastes. No marketing words.
 Output format: one JSON object per product, each on its own single line, nothing else (no array, no code fences, no commentary). Use double quotes and escape any double quote inside text. Each line:
-{"id":string,"isCoffee":boolean,"origin":string|null,"region":string|null,"estate":string|null,"altitude":string|null,"variety":string|null,"process":string|null,"processDetail":string|null,"grade":string|null,"roastLevel":"light"|"medium-light"|"medium"|"medium-dark"|"dark"|null,"notes":[string],"acidity":1-5,"body":1-5,"sweetness":1-5,"bitterness":1-5,"blend":boolean,"summary":string}
+{"id":string,"isCoffee":boolean,"kind":string,"packCount":number|null,"origin":string|null,"region":string|null,"estate":string|null,"altitude":string|null,"variety":string|null,"process":string|null,"processDetail":string|null,"grade":string|null,"roastLevel":"light"|"medium-light"|"medium"|"medium-dark"|"dark"|null,"notes":[string],"acidity":1-5,"body":1-5,"sweetness":1-5,"bitterness":1-5,"blend":boolean,"summary":string}
 
 ${items.map(i => `### id: ${i.id}\n${i.raw}`).join('\n\n')}`;
 
@@ -136,6 +159,7 @@ export async function extractBatch(n, offset) {
   const missed = todo.filter(t => !items.some(i => i.id === t.id));
   for (const t of missed) { const n = (t.tries || 0) + 1; await db(`catalog?id=eq.${encodeURIComponent(t.id)}`, { method: 'PATCH', body: JSON.stringify(n >= 3 ? { tries: n, extracted: true, is_coffee: false } : { tries: n }) }); }
   const cl = v => v == null || isNaN(+v) ? null : Math.min(5, Math.max(1, Math.round(+v)));
+  const KINDS = ['beans', 'ground', 'instant', 'dripbag', 'coldbrew', 'rtd', 'filterblend'];
   const ROAST = ['light', 'medium-light', 'medium', 'medium-dark', 'dark'];
   for (const it of items) {
     if (!todo.some(t => t.id === it.id)) continue;
@@ -143,7 +167,8 @@ export async function extractBatch(n, offset) {
       extracted: true, is_coffee: true, origin: it.origin || null, region: it.region || null, estate: it.estate || null, altitude: it.altitude || null,
       variety: it.variety || null, process: it.process ? String(it.process).slice(0, 40) : null, process_detail: it.processDetail ? String(it.processDetail).slice(0, 220) : null, grade: it.grade || null, roast_level: ROAST.includes(it.roastLevel) ? it.roastLevel : null,
       notes: (it.notes || []).slice(0, 5), acidity: cl(it.acidity), body: cl(it.body), sweetness: cl(it.sweetness), bitterness: cl(it.bitterness),
-      blend: !!it.blend, summary: it.summary ? String(it.summary).slice(0, 220) : null };
+      blend: !!it.blend, summary: it.summary ? String(it.summary).slice(0, 220) : null,
+      ...(KINDS.includes(it.kind) ? { kind: it.kind } : {}), ...(it.packCount > 0 && it.packCount < 500 ? { pack_count: Math.round(it.packCount) } : {}) };
     await db(`catalog?id=eq.${encodeURIComponent(it.id)}`, { method: 'PATCH', body: JSON.stringify(patch) });
   }
   // anything the AI skipped is retried next time; count what is left

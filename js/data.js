@@ -19,6 +19,8 @@ let user = null;
 function lsGet() { try { return JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) { return null; } }
 function lsPut(fn) { try { const v = lsGet() || { profile: {}, journal: {}, shelf: {} }; fn(v); localStorage.setItem(LS, JSON.stringify(v)); } catch (e) {} }
 
+function wallDemo() { try { return JSON.parse(localStorage.getItem('ck-demo-wall') || 'null') || { posts: [], likes: [] }; } catch (e) { return { posts: [], likes: [] }; } }
+function wallDemoSave(d) { try { localStorage.setItem('ck-demo-wall', JSON.stringify(d)); } catch (e) {} }
 function fail(error) { if (error) { const e = new Error(error.message || 'Request failed'); e.code = error.code; throw e; } }
 
 const API = {
@@ -50,6 +52,27 @@ const API = {
   async signOut() { if (sb) await sb.auth.signOut(); },
   async resetPassword(email) { const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname + '#reset' }); fail(error); },
   async updatePassword(password) { const { error } = await sb.auth.updateUser({ password }); fail(error); },
+
+  /* ---------- Brew Wall: shared Instagram posts (approved by an admin before they show) ---------- */
+  async wallList() {
+    if (!sb) { const d = wallDemo(); return d.posts.map(p => ({ ...p, likes: d.likes.filter(l => l.post_id === p.id).length, liked: d.likes.some(l => l.post_id === p.id && l.user_id === 'demo'), mine: p.user_id === 'demo' })); }
+    const { data, error } = await sb.from('brew_posts').select('id,user_id,ig_code,ig_kind,handle,caption,coffee,status,created_at,brew_likes(count)').order('created_at', { ascending: false }).limit(200); fail(error);
+    let likedSet = new Set();
+    if (user) { const { data: L } = await sb.from('brew_likes').select('post_id').eq('user_id', user.id); likedSet = new Set((L || []).map(x => x.post_id)); }
+    return data.map(p => ({ ...p, likes: p.brew_likes?.[0]?.count || 0, liked: likedSet.has(p.id), mine: !!user && p.user_id === user.id }));
+  },
+  async wallAdd(post) {
+    if (!sb) { const d = wallDemo(); if (d.posts.some(x => x.ig_code === post.ig_code)) { const e = new Error('duplicate key'); e.code = '23505'; throw e; } d.posts.unshift({ id: 'w' + Date.now(), user_id: 'demo', status: 'pending', created_at: new Date().toISOString(), ...post }); wallDemoSave(d); return; }
+    const { error } = await sb.from('brew_posts').insert({ ...post, user_id: user.id }); fail(error);
+  },
+  async wallRemove(id) { if (!sb) { const d = wallDemo(); d.posts = d.posts.filter(p => p.id !== id); wallDemoSave(d); return; } const { error } = await sb.from('brew_posts').delete().eq('id', id); fail(error); },
+  async wallLike(id, on) {
+    if (!sb) { const d = wallDemo(); d.likes = d.likes.filter(l => !(l.post_id === id && l.user_id === 'demo')); if (on) d.likes.push({ post_id: id, user_id: 'demo' }); wallDemoSave(d); return; }
+    const q = on ? sb.from('brew_likes').insert({ post_id: id, user_id: user.id }) : sb.from('brew_likes').delete().eq('post_id', id).eq('user_id', user.id);
+    const { error } = await q; if (error && error.code !== '23505') fail(error);
+  },
+  async isAdmin() { if (!sb) return true; if (!user) return false; const { data } = await sb.rpc('is_admin'); return !!data; },
+  async wallReview(id, status) { if (!sb) { const d = wallDemo(); const p = d.posts.find(x => x.id === id); if (p) p.status = status; wallDemoSave(d); return; } const { error } = await sb.from('brew_posts').update({ status, reviewed_at: new Date().toISOString() }).eq('id', id); fail(error); },
 
   /* ---------- load & save ---------- */
   async load() {
@@ -98,9 +121,9 @@ const API = {
   /* ---------- coffee catalogue (public, refreshed from roasters' shops) ---------- */
   async catalog() {
     if (!hasKeys) return [];
-    const K = 'ck-catalog-v1';
+    const K = 'ck-catalog-v2';
     try { const c = JSON.parse(sessionStorage.getItem(K) || 'null'); if (c && Date.now() - c.at < 30 * 60e3) return c.rows; } catch (e) {}
-    const cols = 'id,roaster,name,url,image,images,price_inr,pack_g,price_250,currency,roaster_country,available,origin,region,estate,altitude,variety,process,process_detail,roast_level,notes,acidity,body,sweetness,bitterness,grade,blend,summary,source,updated_at';
+    const cols = 'id,roaster,name,url,image,images,price_inr,pack_g,price_250,currency,roaster_country,available,origin,region,estate,altitude,variety,process,process_detail,roast_level,notes,acidity,body,sweetness,bitterness,grade,blend,summary,source,updated_at,kind,pack_count';
     const rows = [];
     for (let from = 0; from < 3000; from += 1000) {
       const r = await fetch(`${S.supabaseUrl}/rest/v1/catalog?select=${cols}&is_coffee=eq.true&extracted=eq.true&order=roaster,name`, { headers: { apikey: S.supabaseAnonKey, Authorization: 'Bearer ' + S.supabaseAnonKey, Range: `${from}-${from + 999}` } });

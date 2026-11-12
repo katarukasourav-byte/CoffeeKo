@@ -60,10 +60,10 @@ async function loadUser(){
     const t=document.getElementById(id)||document.getElementById('profile');requestAnimationFrame(()=>jumpTo(t));}
 }
 async function loadCatalog(force){
-  if(force)try{sessionStorage.removeItem('ck-catalog-v1');}catch(e){}
+  if(force)try{sessionStorage.removeItem('ck-catalog-v2');}catch(e){}
   try{const rows=await API.catalog();state.cat=rows.map(fromCat);catById.clear();state.cat.forEach(c=>catById.set(c.id,c));state.catState=state.cat.length?'ready':'empty';}
   catch(e){console.warn(e);state.catState='error';}
-  renderExplore();renderJournal();
+  renderExplore();renderJournal();if(LADDER[mainOf(state.prefs)])renderProfile();
 }
 /* The visitor's local currency (from browser region / time zone), used to show nearby shops first */
 const EURO=['AT','BE','CY','DE','EE','ES','FI','FR','GR','HR','IE','IT','LT','LU','LV','MT','NL','PT','SI','SK'];
@@ -72,7 +72,7 @@ const LOCAL_CUR=(()=>{const r=((navigator.language||'').split('-')[1]||'').toUpp
   if(m[r])return m[r];if(EURO.includes(r))return'EUR';if(/Kolkata|Calcutta/.test(tz))return'INR';if(/^Europe\/London/.test(tz))return'GBP';if(/^Europe\//.test(tz))return'EUR';if(/^America\/(New_York|Chicago|Denver|Los_Angeles|Phoenix)/.test(tz))return'USD';if(/^Australia\//.test(tz))return'AUD';if(/^Asia\/Dubai/.test(tz))return'AED';return null;})();
 let _rn;try{_rn=new Intl.DisplayNames(['en'],{type:'region'});}catch(e){}
 const countryName=c=>{try{return _rn?_rn.of(c):c;}catch(e){return c;}};
-const fromCat=r=>({id:r.id,catalogId:r.id,name:r.name,roaster:r.roaster,origin:r.origin||'',region:r.region||'',estate:r.estate||'',altitude:r.altitude||'',variety:r.variety||'',process:r.process||'',processDetail:r.process_detail||'',grade:r.grade||'',blend:r.blend,roastLevel:r.roast_level||'',notes:r.notes||[],tastingNotes:r.notes||[],acidity:r.acidity,body:r.body,sweetness:r.sweetness,bitterness:r.bitterness,summary:r.summary||'',url:r.url,image:r.image,images:(r.images&&r.images.length?r.images:[r.image]).filter(Boolean),price:r.price_inr!=null?+r.price_inr:null,currency:r.currency||'INR',roasterCountry:r.roaster_country||'',packG:r.pack_g,price250:r.price_250!=null?+r.price_250:null,available:r.available!==false,source:r.source,updatedAt:r.updated_at});
+const fromCat=r=>({id:r.id,catalogId:r.id,name:r.name,roaster:r.roaster,origin:r.origin||'',region:r.region||'',estate:r.estate||'',altitude:r.altitude||'',variety:r.variety||'',process:r.process||'',processDetail:r.process_detail||'',grade:r.grade||'',blend:r.blend,roastLevel:r.roast_level||'',notes:r.notes||[],tastingNotes:r.notes||[],acidity:r.acidity,body:r.body,sweetness:r.sweetness,bitterness:r.bitterness,summary:r.summary||'',url:r.url,image:r.image,images:(r.images&&r.images.length?r.images:[r.image]).filter(Boolean),price:r.price_inr!=null?+r.price_inr:null,currency:r.currency||'INR',roasterCountry:r.roaster_country||'',packG:r.pack_g,price250:r.price_250!=null?+r.price_250:null,available:r.available!==false,source:r.source,updatedAt:r.updated_at,productType:r.kind||undefined,packCount:r.pack_count||null});
 
 /* =================== taste model =================== */
 const FAM=Object.fromEntries(Object.entries(SITE.flavours).map(([k,v])=>[k,{l:v.label,w:v.words}]));
@@ -155,17 +155,19 @@ const AMZ=(()=>{const l=(navigator.language||'').toLowerCase(),r=l.split('-')[1]
 const amazon=p=>`https://www.${AMZ}/s?k=${encodeURIComponent([p.roaster,p.name,'coffee'].filter(Boolean).join(' '))}`;
 const imgW=(u,w)=>u&&/cdn\.shopify\.com|\/cdn\/shop\//.test(u)?u+(u.includes('?')?'&':'?')+'width='+w:u;
 const money=(n,c)=>{try{return new Intl.NumberFormat(undefined,{style:'currency',currency:c||'INR',maximumFractionDigits:c&&c!=='INR'&&c!=='JPY'?2:0}).format(n);}catch(e){return(c||'')+' '+n;}};
-const priceText=p=>p.price?`${money(p.price,p.currency)}${p.packG?' · '+p.packG+' g':''}`:(p.priceText||p.priceINR||'');
+const priceText=p=>p.price?`${money(p.price,p.currency)}${p.packCount&&['instant','dripbag','coldbrew','rtd'].includes(p.productType)?' · pack of '+p.packCount:p.packG?' · '+p.packG+' g':''}`:(p.priceText||p.priceINR||'');
 const originLine=p=>p.blend&&!p.origin?'Blend':[p.region,p.origin].filter(Boolean).join(', ')||'Origin not stated';
 const search=p=>`https://www.google.com/search?q=${encodeURIComponent([p.roaster,p.name,'buy'].filter(Boolean).join(' '))}`;
 /* =================== section nav =================== */
-const SECS=['profile','explore','journal','shelf'];
+const SECS=['profile','explore','journal','shelf','wall'];
+/* keep the current tab visible when the tab bar is wider than a phone screen */
+function showTab(a){if(!a)return;const bar=a.parentElement;if(bar.scrollWidth<=bar.clientWidth)return;const l=a.offsetLeft,r=l+a.offsetWidth;if(l<bar.scrollLeft+16||r>bar.scrollLeft+bar.clientWidth-16)bar.scrollTo({left:l-bar.clientWidth/2+a.offsetWidth/2,behavior:'smooth'});}
 function initNav(){
   const links=[...document.querySelectorAll('.subnav a')];
   /* Tabs jump straight to their section (no long scroll past the others), with a quick fade-in */
   links.forEach(l=>l.addEventListener('click',e=>{const t=document.getElementById(l.getAttribute('href').slice(1));if(!t)return;e.preventDefault();jumpTo(t);
     links.forEach(a=>a.toggleAttribute('aria-current',a===l));try{history.replaceState(history.state,'','#'+t.id);}catch(_){}}));
-  const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){links.forEach(a=>a.toggleAttribute('aria-current',a.getAttribute('href')==='#'+en.target.id));try{localStorage.setItem('ck-last-section',en.target.id);}catch(_){}}});},{rootMargin:'-45% 0px -50% 0px'});
+  const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){links.forEach(a=>a.toggleAttribute('aria-current',a.getAttribute('href')==='#'+en.target.id));showTab(links.find(a=>a.getAttribute('href')==='#'+en.target.id));try{localStorage.setItem('ck-last-section',en.target.id);}catch(_){}}});},{rootMargin:'-45% 0px -50% 0px'});
   SECS.forEach(id=>{const el=document.getElementById(id);if(el)io.observe(el);});
 }
 function jumpTo(t){const y=t.getBoundingClientRect().top+scrollY-(parseFloat(getComputedStyle(t).scrollMarginTop)||0);
@@ -217,7 +219,18 @@ function trackPersona(P){
   return s.persona;
 }
 /* =================== render =================== */
-function renderAll(){renderProfile();renderExplore();renderJournal();renderShelf();}
+function renderAll(){renderProfile();renderExplore();renderJournal();renderShelf();renderWall();}
+/* Brew Wall (js/wall.js): shared Instagram posts, loaded when the section is first drawn */
+let wallFor;
+const wallCtx=()=>({API,state,esc,openSheet,closeSheet,head,toast,openOverlay,closeOverlay,signedIn:()=>!!me,needSignIn:m=>{toast(m);showAuth(knownDevice()?'signin':'signup');const a=document.getElementById('auth');a&&scrollTo({top:a.getBoundingClientRect().top+scrollY-90,behavior:'smooth'});}});
+function renderWall(force){const el=document.getElementById('wall-body');const who=me?me.id:'';if(!el||(wallFor===who&&!force))return;wallFor=who;
+  import('./wall.js').then(m=>m.renderWall(el,wallCtx())).catch(()=>{el.innerHTML='<p class="muted">The Brew Wall couldn’t load. Try again in a moment.</p>';});}
+/* "What you can do": a short list of the main features, shown to visitors beside the sign-up form */
+const FEAT_IC={persona:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',match:'<path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10z"/>',
+  journal:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/>',shelf:'<path d="M4 20h16M6 20V9h4v11M14 20V5h4v15"/>',buy:'<path d="M5 8h14l-1.5 12h-11z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>'};
+function featList(F){if(!F||!F.length)return'';return`<ul class="feat">${F.map(([k,t,d])=>`<li><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">${FEAT_IC[k]||''}</svg><span><b>${esc(t)}</b>${esc(d)}</span></li>`).join('')}</ul>`;}
+/* The same list, titles only, over the first photo */
+{const hf=document.getElementById('heroFeat'),F=(SITE.login||{}).features||[];if(hf)hf.innerHTML=F.map(([k,t])=>`<li><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">${FEAT_IC[k]||''}</svg>${esc(t)}</li>`).join('');}
 /* Remember how far each sideways list was scrolled, and put it back after redrawing */
 function keepScroll(el,fn){const rails=[...el.querySelectorAll('.rail')].map(r=>r.scrollLeft);fn();el.querySelectorAll('.rail').forEach((r,i)=>{if(rails[i])r.scrollLeft=rails[i];});}
 function renderProfile(){
@@ -237,7 +250,7 @@ function renderProfile(){
      <h3 class="tid-name">${esc(P.name)}</h3>
      ${touch?`<p class="tid-touch">with a touch of ${esc(touch)}</p>`:''}
      <p class="tid-desc">${esc(palateSentence())} ${esc(P.text)}</p>
-     ${P.look?`<p class="tid-look"><span>You tend to enjoy</span>${esc(P.look)}</p>`:''}
+     ${P.look?`<p class="tid-look"><span>You tend to enjoy</span>${esc(P.look)}</p>`:''}${styleTip(P,state.prefs)}${nextStepCard()}
      ${changed?`<p class="tid-change">Changed from <b>${esc(PERS[hist.prev].name)}</b> on ${fmtD(new Date(hist.since))}, after your latest ratings.</p>`:''}
      <div class="tid-stats"><div><b>${r.length}</b><span>rated</span></div><div><b>${loved.length}</b><span>loved or liked</span></div><div><b>${origins.size}</b><span>origins</span></div><div><b>${state.shelf.length}</b><span>on shelf</span></div></div>
      <div class="balance">${ATTRS.map(([k,n,lo,hi])=>`<div class="bal"><span class="bn">${n}</span><div class="bt">${p&&p[k]?`<span class="bm bm-pick" style="left:${pos(p[k])}" title="Your quiz answer"></span>`:''}${likedAvg[k]!=null?`<span class="bm bm-liked" style="left:${pos(likedAvg[k])}" title="Coffees you liked"></span>`:''}</div><span class="be"><span>${lo}</span><span>${hi}</span></span></div>`).join('')}
@@ -264,11 +277,32 @@ function diversify(L){const out=[],rest=L.slice();
     let i=rest.findIndex(x=>!recent.includes(x.p.roaster));if(i<0)i=rest.findIndex(x=>x.p.roaster!==last);if(i<0)i=0;out.push(rest.splice(i,1)[0]);}
   return out;}
 function diversifyOld(L){const out=[],rest=L.slice();while(rest.length){let i=rest.findIndex(x=>!(out.length>=2&&out[out.length-1].p.roaster===x.p.roaster&&out[out.length-2].p.roaster===x.p.roaster));if(i<0)i=0;out.push(rest.splice(i,1)[0]);}return out;}
+/* What a product is, and which brew styles it suits (worked out from its name and roast until the catalogue stores it) */
+const PTYPE={beans:'Whole coffee beans',ground:'Ground coffee beans',instant:'Instant coffee',coldbrew:'Cold brew bags',rtd:'Ready to drink',dripbag:'Drip bags',filterblend:'Filter coffee blend'};
+function ptype(p){if(p.productType)return p.productType;const t=[p.name,p.summary].join(' ').toLowerCase();
+  if(/\binstant\b/.test(t))return'instant';if(/cold ?brew/.test(t))return/\b(bottle|can|ready to drink|rtd|\d+ ?ml)\b/.test(t)?'rtd':'coldbrew';
+  if(/drip ?bag|pour ?over bag|dip ?bag|steep bag/.test(t))return'dripbag';if(/chicory|filter coffee|decoction/.test(t))return'filterblend';
+  if(/\bground\b|powder/.test(t)&&!/whole ?bean/.test(t))return'ground';return'beans';}
+function suits(p){const k=ptype(p);if(p.suits)return p.suits;
+  if(k==='instant')return['instant'];if(k==='coldbrew')return['coldbrew'];if(k==='rtd')return['coldbrew','cafe'];if(k==='dripbag')return['pourover','instant'];if(k==='filterblend')return['filter'];
+  const r=ROASTN(p.roastLevel);
+  if(r==='light')return['pourover','frenchpress','coldbrew'];if(r==='medium')return['pourover','frenchpress','espresso','coldbrew','cafe','filter'];
+  if(r==='medium-dark'||r==='dark')return['espresso','frenchpress','filter','coldbrew','cafe'];return['pourover','frenchpress','espresso','coldbrew'];}
+let xstyle='mine';
 function exploreList(){
   const hidden=new Set(state.settings.hidden||[]);
-  let L=state.cat.filter(p=>p.available&&!hidden.has(keyOf(p))&&!hidden.has(p.id)).map(p=>({p,m:match(p)}));
+  const myStyles=stylesOf(state.prefs),main=mainOf(state.prefs);
+  const PACKED=['instant','dripbag','coldbrew','rtd'];
+  /* "All my styles" stays beans and ground; packs (cold brew bags, instant, drip bags, bottles) show under their own chip,
+     or in the default view only when that kind of coffee is the person's main style */
+  const packOk=p=>!PACKED.includes(ptype(p))||suits(p).includes(main)&&['instant','coldbrew','cafe'].includes(main);
+  const styleOk=p=>{if(!myStyles)return!PACKED.includes(ptype(p));   /* people who haven't picked brew styles (older accounts, visitors) see beans and ground, as before */
+    const su=suits(p);return xstyle==='mine'?su.some(x=>myStyles.includes(x))&&packOk(p):su.includes(xstyle);};
+  let L=state.cat.filter(p=>p.available&&!hidden.has(keyOf(p))&&!hidden.has(p.id)&&styleOk(p)).map(p=>({p,m:match(p)}));
+  const made=(p,st)=>ptype(p)!=='beans'&&ptype(p)!=='ground'&&suits(p).includes(st);   /* made for that style: cold brew bags, instant… */
+  const lead=p=>xstyle!=='mine'?(made(p,xstyle)?40:0):main?(made(p,main)?6:suits(p)[0]===main?4:suits(p).includes(main)?2:0):0;
   const near=p=>LOCAL_CUR&&p.currency===LOCAL_CUR?3:0;   /* shops in your own currency rank a little higher */
-  L.sort((a,b)=>((b.m?.score||0)+near(b.p))-((a.m?.score||0)+near(a.p))||(a.p.price250||9e9)-(b.p.price250||9e9));
+  L.sort((a,b)=>((b.m?.score||0)+near(b.p)+lead(b.p))-((a.m?.score||0)+near(a.p)+lead(a.p))||(a.p.price250||9e9)-(b.p.price250||9e9));
   const f=xf;
   L=L.filter(({p,m})=>{const r=ROASTN(p.roastLevel),fm=famsOf(p.notes),pr=(p.process||'').toLowerCase(),o=(p.origin||'').toLowerCase();
     if(f==='top')return m&&m.score>=75;if(f==='light')return r==='light';if(f==='medium')return r==='medium';if(f==='dark')return r==='medium-dark'||r==='dark';
@@ -279,13 +313,57 @@ function exploreList(){
   if(!(LOCAL_CUR&&(f==='all'||f==='top')))L=diversify(L);
   if(LOCAL_CUR&&(f==='all'||f==='top')){const home=diversify(L.filter(x=>x.p.currency===LOCAL_CUR)),away=diversify(L.filter(x=>x.p.currency!==LOCAL_CUR));if(!home.length||!away.length)L=diversify(L);
     if(home.length&&away.length){const out=[];let i=0,j=0;while(i<home.length||j<away.length){for(let k=0;k<3&&i<home.length;k++)out.push(home[i++]);if(j<away.length)out.push(away[j++]);if(i>=home.length)while(j<away.length)out.push(away[j++]);}L=out;}}
+  if(xstyle!=='mine'){const A=L.filter(x=>made(x.p,xstyle));if(A.length)L=A.concat(L.filter(x=>!made(x.p,xstyle)));}   /* under a chip: cold brew bags etc. first */
   return L.map(x=>Object.assign(x,{saved:!!inJournal(x.p)}));
 }
+/* One practical line for how they drink coffee, in the words of their personality */
+function styleTip(P,pr){const m=mainOf(pr);if(!m||!P||P.key==='newbie')return'';const bright=['floral','fruity','explorer'].includes(P.key),choc=['chocolate','sweet','balanced','newbie'].includes(P.key),bold=P.key==='bold';
+  const t={pourover:bright?'Light roasts, washed or natural, brewed a little hotter bring out the brightness you like.':choc?'Medium roasts at a slightly finer grind give a sweet, rounded cup.':'Medium-dark roasts with a coarser grind keep it bold but clean.',
+    espresso:bright?'Try a fruity single origin as espresso, or as a milk drink for a berry latte.':bold?'Medium-dark to dark roasts give the punchy shot you like.':'Medium roasts with chocolate notes make a sweet, balanced shot.',
+    frenchpress:bright?'A natural-process coffee in the French press tastes like fruit jam.':'Medium to medium-dark beans give a rich, heavy cup.',
+    filter:pr?.chicory==='classic'||pr?.chicory==='some'?'Keep your chicory blend for strength, and try a 100% coffee decoction with a medium-dark specialty roast some days.':'A medium-dark specialty roast makes a strong, sweet decoction without chicory.',
+    coldbrew:bright?'A natural Ethiopian or Kenyan steeped cold tastes juicy and fruity.':'Medium roasts with chocolate notes make the smoothest, sweetest cold brew.',
+    instant:'Specialty instant made from single-origin beans is a big step up and close to your taste.',
+    cafe:bright?'Ask for single-origin or filter coffee – it suits your taste better than the house blend.':'A flat white or cortado with a chocolatey house blend suits you well.'}[m];
+  return t?`<p class="tid-look style-tip"><span>For your ${esc(STYLE_NAME[m])}</span>${esc(t)}</p>`:'';}
+/* ---------- Next step: one easy upgrade from how they drink coffee today ---------- */
+const NS_BEANS=['beans','Whole coffee beans','Grinding just before brewing is the biggest jump in flavour. A simple hand grinder is enough.'];
+const LADDER={
+  instant:[['instant','Specialty instant','Instant made from single-origin specialty beans. Same two minutes, a much better cup.'],
+    ['dripbag','Drip bags','Hang a bag on your mug and pour hot water over it. Real ground specialty coffee, no equipment.'],
+    ['coldbrew','Cold brew bags','Leave a bag in a jar of water in the fridge overnight. Smooth, and easy to make strong.'],
+    ['ground','Ground coffee and a French press','A French press costs little and makes a full, rich cup from ground coffee.'],NS_BEANS],
+  cafe:[['dripbag','Drip bags at home','Café-quality black coffee at home: hang a bag on your mug and pour hot water.'],
+    ['ground','Ground coffee and a French press','A French press makes a rich cup at home, with or without milk, for a fraction of the café price.'],NS_BEANS],
+  coldbrew:[['coldbrew','Cold brew bags','Steep a bag overnight in the fridge. Cheaper than bottles and you choose the coffee.'],
+    ['ground','Coarse ground for cold brew','Steep coarse-ground coffee in a jar overnight, then strain. You pick the beans and the strength.'],NS_BEANS],
+  filter:[['filter100','100% coffee filter roast','Try a medium-dark specialty roast with less chicory, or none. It still makes a strong, sweet decoction.'],NS_BEANS]};
+function triedTypes(){const T=new Set();
+  state.journal.forEach(e=>{const c=e.catalogId&&catById.get(e.catalogId);const k=ptype(c||e);T.add(k);if(e.brew==='filter'&&k!=='filterblend'&&!/chicory/i.test(e.name))T.add('filter100');});
+  state.shelf.forEach(b=>T.add(b.kind||'beans'));
+  if(T.has('beans'))['ground','dripbag','coldbrew','filter100'].forEach(x=>T.add(x));if(T.has('ground'))['dripbag','filter100'].forEach(x=>T.add(x));
+  return T;}
+function nextStep(){const pr=state.prefs,m=mainOf(pr);if(!m||!LADDER[m])return null;
+  if(m==='filter'&&pr.chicory==='none')return null;
+  const T=triedTypes(),tier=LADDER[m].find(([k])=>!T.has(k));if(!tier)return null;
+  const h=state.settings.nextHide;if(h&&h.k===tier[0]&&h.until>Date.now())return null;
+  const hidden=new Set(state.settings.hidden||[]);
+  const fit=p=>{const k=ptype(p);if(tier[0]==='filter100')return(k==='filterblend'||((k==='beans'||k==='ground')&&suits(p).includes('filter')))&&!/chicory/i.test(p.name+' '+(p.summary||''));
+    if(tier[0]==='beans')return k==='beans'&&suits(p).some(x=>['pourover','frenchpress',m].includes(x));return k===tier[0];};
+  const L=state.cat.filter(p=>p.available&&!hidden.has(p.id)&&!inJournal(p)&&fit(p)).map(p=>({p,s:(match(p)?.score||0)+(LOCAL_CUR&&p.currency===LOCAL_CUR?5:0)})).sort((a,b)=>b.s-a.s);
+  return{k:tier[0],title:tier[1],text:tier[2],p:L[0]?.p||null,style:tier[0]==='ground'||tier[0]==='beans'?(m==='coldbrew'?'coldbrew':'frenchpress'):m==='filter'?'filter':tier[0]==='instant'?'instant':tier[0]==='dripbag'?'pourover':'coldbrew'};}
+function nextStepCard(){const n=nextStep();if(!n)return'';const p=n.p;
+  return`<div class="nextstep"><span class="kicker">Your next step</span><h4>${esc(n.title)}</h4><p>${esc(n.text)}</p>
+   ${p?`<button class="ns-prod" data-act="coffee" data-id="${esc(p.id)}">${p.image?`<img src="${esc(imgW(p.image,160))}" alt="" loading="lazy">`:beanIcon()}<span><b>${esc(p.name)}</b><span class="muted">${esc(p.roaster)} · ${esc(priceText(p))}</span></span><span class="x-more">See it</span></button>`
+     :`<p class="muted fine">We’re adding these from roasters’ shops. Check back soon.</p>`}
+   <div class="actions"><button class="btn ghost small" data-act="nsexplore" data-s="${n.style}">More in Explore</button><button class="btn quiet small" data-act="nslater" data-k="${n.k}">Not now</button></div></div>`;}
+/* Card label: what the product is (whole coffee beans, ground coffee beans, instant, drip bags…) */
+function typeLine(p){return`<div class="x-type">${esc(PTYPE[ptype(p)])}</div>`;}
 function xcard({p,m,saved}){
   return`<article class="xcard" data-act="coffee" data-id="${esc(p.id)}" tabindex="0" role="button" aria-label="${esc(p.name)}, ${esc(p.roaster)}. Open details">
     <div class="x-img">${p.image?`<img src="${esc(imgW(p.image,480))}" alt="" loading="lazy" decoding="async">`:beanIcon()}${saved?'<span class="x-saved">Saved</span>':''}</div>
     <div class="x-body">${m?`<span class="x-lbl m-${m.cls}">${m.lbl} · ${m.score}%</span>`:''}
-      <h4>${esc(p.name)}</h4><div class="by">${esc(p.roaster)}${p.roasterCountry?' · '+esc(countryName(p.roasterCountry)):''}</div>
+      <h4>${esc(p.name)}</h4>${typeLine(p)}<div class="by">${esc(p.roaster)}${p.roasterCountry?' · '+esc(countryName(p.roasterCountry)):''}</div>
       <div class="x-origin"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M12 21s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="9" r="2.4" fill="currentColor"/></svg>${esc(originLine(p))}</div>
       <div class="chips">${p.roastLevel?`<span class="chip static">${esc(cap(p.roastLevel))}</span>`:''}${p.process?`<span class="chip static">${esc(p.process)}</span>`:''}${(p.notes||[]).slice(0,2).map(n=>`<span class="chip static">${esc(n)}</span>`).join('')}</div>
       <div class="x-foot"><span class="price">${esc(priceText(p))}</span><span class="x-more">Details</span></div></div>
@@ -296,21 +374,25 @@ const valueLine=c=>{const v=state.cat.filter(x=>x.currency===c&&x.price250).map(
 let XL=[];
 function renderExplore(){
   const el=$('#explore-body');if(!el)return;
+  {const m=mainOf(state.prefs),st=stylesOf(state.prefs)||[];if(xstyle!=='mine'&&(!st.includes(xstyle)||xstyle==='cafe'&&m!=='cafe'))xstyle='mine';}
   XL=exploreList();const LIM=24;
   const st=state.catState;
   const body=st==='loading'?`<div class="rail-empty"><p>Loading coffees…</p></div>`
     :st==='error'?`<div class="rail-empty"><p>Couldn’t load the coffee list.</p><button class="btn ghost small" data-act="reload-cat">Try again</button></div>`
     :!state.cat.length?`<div class="rail-empty"><p>The coffee list is being built from roasters’ shops. Check back in a little while.</p></div>`
-    :!XL.length?`<p class="muted">Nothing matches this filter.</p>`
+    :!XL.length?(xstyle==='instant'||xstyle==='coldbrew'&&!XL.length?`<div class="rail-empty"><p>${xstyle==='instant'?'Specialty instant coffees are being added from roasters’ shops.':'Cold brew packs are being added from roasters’ shops.'} Meanwhile, these are coffees that suit you – try the <b>${xstyle==='instant'?'Pour-over':'All my styles'}</b> filter.</p></div>`:`<p class="muted">Nothing matches this filter.</p>`)
     :xAll?`<div class="xall-bar"><button class="btn ghost small" data-act="xall">← Back to top picks</button><span class="muted">All ${XL.length} coffees</span></div><div class="xgrid">${XL.map(xcard).join('')}</div>`
     :`<div class="rail" tabindex="0" aria-label="Coffee matches">${XL.slice(0,LIM).map(xcard).join('')}${XL.length>LIM?`<button class="xcard xmore" data-act="xall"><b>See all ${XL.length}</b><span class="muted">coffees in this list</span></button>`:''}</div>`;
   const roasters=new Set(state.cat.map(c=>c.roaster)).size;
   const XFs=LOCAL_CUR&&state.cat.some(c=>c.currency===LOCAL_CUR)&&state.cat.some(c=>c.currency!==LOCAL_CUR)?[XF[0],['local','Near you'],['abroad','International'],...XF.slice(1)]:XF;
-  el.innerHTML=`<div class="filters" role="group" aria-label="Filter">${XFs.map(([k,l])=>`<button class="fchip" data-xf="${k}" aria-pressed="${xf===k}">${l}</button>`).join('')}</div>
+  const main=mainOf(state.prefs),my=(stylesOf(state.prefs)||[]).filter(k=>k!=='cafe'||main==='cafe');   /* cafés: nothing to buy, so no chip unless it's their main */
+  const styleRow=my.length>1?`<div class="filters styles" role="group" aria-label="Brew style"><span class="f-lbl">For</span>${[['mine','All my styles'],...my.map(k=>[k,cap(STYLE_NAME[k])])].map(([k,l])=>`<button class="fchip" data-xs="${k}" aria-pressed="${xstyle===k}">${esc(l)}</button>`).join('')}</div>`:'';
+  el.innerHTML=styleRow+`<div class="filters" role="group" aria-label="Filter">${XFs.map(([k,l])=>`<button class="fchip" data-xf="${k}" aria-pressed="${xf===k}">${l}</button>`).join('')}</div>
    ${body}
    ${xAll&&XL.length?`<button class="btn ghost small" data-act="xall">← Back to top picks</button>`:''}
    ${state.cat.length?`<p class="muted fine">${state.cat.length} coffees from ${roasters} roasters. Prices, photos and links come from each roaster’s shop and are refreshed daily. Matches update every time you rate a coffee.</p>`:''}`;
   el.querySelectorAll('[data-xf]').forEach(b=>b.onclick=()=>{xf=b.dataset.xf;xAll=false;renderExplore();});
+  el.querySelectorAll('[data-xs]').forEach(b=>b.onclick=()=>{xstyle=b.dataset.xs;xAll=false;renderExplore();});
   $('#mmBtn').disabled=!XL.some(x=>!x.saved);
 }
 /* ---------- coffee details ---------- */
@@ -423,7 +505,14 @@ const beanIcon=()=>'<svg width="30" height="40" viewBox="-12 -16 24 32" aria-hid
 
 /* =================== shelf =================== */
 const WIN=SITE.freshness;
+/* Packs counted in servings rather than grams: instant, drip bags, cold brew packs, bottles */
+const SERV={instant:['serving','servings',25],dripbag:['drip bag','drip bags',10],coldbrew:['pack','packs',5],rtd:['bottle','bottles',6]};
+const isServ=b=>!!(b&&SERV[b.kind]);
+const uWord=(k,n)=>n===1?SERV[k][0]:SERV[k][1];
+const nU=(k,n)=>`${n} ${uWord(k,n)}`;
 function fresh(b){
+  if(isServ(b)){const now=today(),bb=parseD(b.bestBy),cups=Math.floor(b.leftG||0),runOut=new Date(+now+Math.ceil(cups/(b.cupsPerDay||1))*DAY);
+    return{serv:true,rd:now,rest:0,peak:9999,age:0,bestBy:bb,useBy:bb&&bb<runOut?bb:new Date(+runOut+400*DAY),cups,runOut,stage:bb&&now>bb?'stale':'peak',now};}
   const rd=parseD(b.roastDate)||today();const[rest,peak]=WIN[b.roastLevel]||WIN.medium;
   const now=today();const age=days(rd,now);const peakEnd=new Date(+rd+peak*DAY);
   const op=parseD(b.openedDate);const openEnd=op?new Date(+op+(SITE.openedBagDays||30)*DAY):null;
@@ -435,6 +524,9 @@ function fresh(b){
   return{rd,rest,peak,age,peakEnd,openEnd,useBy,cups,runOut,stage,now};
 }
 function advice(b,f){
+  if(f.serv){if(b.leftG<=0)return['Finished. Restock it by changing the count, or tap Finished to clear it.',''];
+    if(f.stage==='stale')return[`Past its best-before date (${fmtD(f.bestBy)}).`,'bad'];
+    const d=Math.max(1,days(f.now,f.runOut));return[`${cap(nU(b.kind,f.cups))} left: about ${d} day${d===1?'':'s'} at ${b.cupsPerDay||1} a day.${d<=3?' Time to restock.':''}${f.bestBy?' Best before '+fmtD(f.bestBy)+'.':''}`,d<=3?'warn':''];}
   if(b.leftG<=0){const e=entryOfBag(b);return[e&&e.status==='rated'?'Empty. Refill it by changing the grams, or tap Finished to clear it.':'Empty. Rate it below, then tap Finished to clear it.',''];}
   if(f.stage==='rest')return[`Still resting. It should open up from ${fmtD(new Date(+f.rd+f.rest*DAY))}.`,''];
   if(f.stage==='stale')return['Past its best. Fine for cold brew or milk drinks.','bad'];
@@ -452,6 +544,9 @@ function freshRing(f,size){
   const a=-Math.PI/2+frac*2*Math.PI, x=size/2+Math.cos(a)*r, y=size/2+Math.sin(a)*r;
   return`<span class="fring" style="width:${size}px;height:${size}px"><svg viewBox="0 0 ${size} ${size}" aria-hidden="true">${seg(0,f.rest/span,'fr-rest')}${seg(f.rest/span,f.peak/span,'fr-peak')}${seg(f.peak/span,1,'fr-fade')}<circle cx="${x}" cy="${y}" r="6" class="fr-now"/></svg><b>Day ${Math.max(0,f.age)}</b><i>${STG[f.stage]}</i></span>`;
 }
+function countRing(b,size){const r=size/2-6,C=2*Math.PI*r,fr=Math.max(0,Math.min(1,(b.leftG||0)/(b.bagG||1)));
+  return`<span class="fring cnt" style="width:${size}px;height:${size}px"><svg viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle cx="${size/2}" cy="${size/2}" r="${r}" class="fr-rest"/><circle cx="${size/2}" cy="${size/2}" r="${r}" class="fr-peak" stroke-dasharray="${(C*fr).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 ${size/2} ${size/2})"/></svg><b>${Math.round(b.leftG||0)}</b><i>${uWord(b.kind,Math.round(b.leftG||0))} left</i></span>`;}
+const ringOf=(b,f,size)=>f.serv?countRing(b,size):freshRing(f,size);
 function renderShelf(){keepScroll($('#shelf-body'),renderShelf0);}
 function renderShelf0(){
   const s=state.settings;
@@ -460,15 +555,15 @@ function renderShelf0(){
   const list=all.filter(([b])=>b.leftG>0).sort((a,b)=>a[1].useBy-b[1].useBy);
   const firstIdx=list.findIndex(([b,f])=>b.leftG>0&&f.stage!=='stale');
   $('#shelf-body').innerHTML=`${shelfDue()?`<div class="banner"><span><b>Time for a shelf check.</b> ${s.shelfCheckedAt?'Last update was '+days(new Date(s.shelfCheckedAt),new Date())+' days ago.':'Update how much is left in each bag.'}</span><button class="btn small" data-act="checked">Everything’s up to date</button></div>`:''}
-   <div class="rail srail"><button class="scard add" data-act="addbag"><span class="plus">+</span><b>Add a bag</b><span class="muted">Roast date and grams</span></button>
+   <div class="rail srail"><button class="scard add" data-act="addbag"><span class="plus">+</span><b>Add a bag</b><span class="muted">Beans, drip bags, instant…</span></button>
    ${list.map(([b,f],idx)=>`<article class="scard ${idx===firstIdx&&list.length>1?'first':''}" data-id="${b.id}">
      ${idx===firstIdx&&list.length>1?'<span class="flag">Brew this first</span>':''}
-     <button class="s-open" data-s="view" aria-label="Open ${esc(b.name)}">${freshRing(f,128)}</button>
+     <button class="s-open" data-s="view" aria-label="Open ${esc(b.name)}">${ringOf(b,f,128)}</button>
      ${(()=>{const ph=photosOfBag(b)[0];return ph?`<span class="s-photo" data-act="bagphoto" data-id="${b.id}" role="button" aria-label="See photos of ${esc(b.name)}" style="background-image:url('${esc(ph.startsWith('data:')?ph:imgW(ph,200))}')"></span>`:'';})()}
-     <h4>${esc(b.name)}</h4><span class="muted">${esc(cap(b.roastLevel))} · roasted ${fmtD(f.rd)}</span>
-     <div class="s-left"><b>${Math.round(b.leftG)}</b> g left <span class="muted">· ~${f.cups} cups</span></div>
+     <h4>${esc(b.name)}</h4><span class="muted">${f.serv?esc(PTYPE[b.kind])+(f.bestBy?' · best before '+fmtD(f.bestBy):''):esc(cap(b.roastLevel))+' · roasted '+fmtD(f.rd)}</span>
+     <div class="s-left">${f.serv?`<b>${Math.round(b.leftG)}</b> ${uWord(b.kind,Math.round(b.leftG))} left <span class="muted">· ~${Math.max(1,days(f.now,f.runOut))} days</span>`:`<b>${Math.round(b.leftG)}</b> g left <span class="muted">· ~${f.cups} cups</span>`}</div>
      <div class="gauge"><i style="width:${Math.min(100,b.leftG/b.bagG*100)}%"></i></div>
-     <button class="btn small" data-s="cup" ${b.leftG<=0?'disabled':''}>Brewed a cup</button></article>`).join('')}
+     <button class="btn small" data-s="cup" ${b.leftG<=0?'disabled':''}>${f.serv?'Had one':'Brewed a cup'}</button></article>`).join('')}
    ${past.length?`<button class="scard pastbags" data-act="pastbags" aria-label="Past bags, ${past.length}"><span class="stack" aria-hidden="true"><i></i><i></i><i></i></span><b>Past bags · ${past.length}</b><span class="muted">Finished coffees. See them, refill or rate.</span></button>`:''}</div>
    <div class="actions fine-row"><button class="btn ghost small" data-act="brewlog">Brew history${(state.settings.brewLog||[]).length?' · '+state.settings.brewLog.length:''}</button></div>
    <div class="actions fine-row"><label class="muted" for="remind">Shelf check reminder</label><select id="remind" style="width:auto">${[[3,'Every 3 days'],[5,'Every 5 days'],[7,'Every week'],[14,'Every 2 weeks'],[0,'Off']].map(([v,l])=>`<option value="${v}" ${s.remindEvery==v?'selected':''}>${l}</option>`).join('')}</select><span class="muted">Reminders appear here when you open CoffeeKo. There are no emails yet.</span></div>`;
@@ -483,6 +578,7 @@ function renderShelf0(){
 /* ---------- Brewed a cup: pick the dose, then log it ---------- */
 const DOSES=[15,18,20];
 function openBrew(b){
+  if(isServ(b))return openHad(b);
   const last=b.doseG||15,isPreset=DOSES.includes(last);
   openSheet(`${head('Brewed a cup')}<h3>${esc(b.name)}</h3><p class="lead">How much coffee did you use? ${Math.round(b.leftG)} g left in the bag.</p>
    <div class="doses" role="radiogroup" aria-label="Coffee used">${DOSES.map(g=>`<button class="dose" role="radio" data-g="${g}" aria-checked="${g===last}">${g} g</button>`).join('')}<button class="dose" role="radio" data-g="m" aria-checked="${!isPreset}">Other</button></div>
@@ -496,6 +592,17 @@ function openBrew(b){
     b.leftG=Math.max(0,b.leftG-g);b.doseG=g;if(!b.openedDate)b.openedDate=isoD(today());b.updatedAt=Date.now();
     const s=state.settings;s.shelfCheckedAt=Date.now();s.brewLog=[{at:Date.now(),bag:b.id,name:b.name,g:used},...(s.brewLog||[])].slice(0,500);
     saveBag(b);saveProfile();closeSheet();renderShelf();toast(`Logged ${used} g. ${Math.round(b.leftG)} g left`);};
+}
+/* Had one: for packs counted in servings */
+function openHad(b){const k=b.kind,max=Math.max(1,Math.round(b.leftG));
+  openSheet(`${head('Had one')}<h3>${esc(b.name)}</h3><p class="lead">How many ${uWord(k,2)} did you use? ${nU(k,max)} left.</p>
+   <div class="doses" role="radiogroup" aria-label="How many">${[1,2,3].filter(n=>n<=max).map(n=>`<button class="dose" role="radio" data-n="${n}" aria-checked="${n===1}">${n}</button>`).join('')}</div>
+   <div class="sheet-foot"><button class="btn quiet" data-close>Cancel</button><button class="btn accent big" id="doseOk">Log 1 ${uWord(k,1)}</button></div>`);
+  let n=1;const ok=$('#doseOk');
+  sheet.querySelectorAll('.dose').forEach(d=>d.onclick=()=>{sheet.querySelectorAll('.dose').forEach(x=>x.setAttribute('aria-checked',x===d));n=+d.dataset.n;ok.textContent=`Log ${nU(k,n)}`;});
+  ok.onclick=()=>{const used=Math.min(n,b.leftG);b.leftG=Math.max(0,b.leftG-n);if(!b.openedDate)b.openedDate=isoD(today());b.updatedAt=Date.now();
+    const s=state.settings;s.shelfCheckedAt=Date.now();s.brewLog=[{at:Date.now(),bag:b.id,name:b.name,g:used,u:k},...(s.brewLog||[])].slice(0,500);
+    saveBag(b);saveProfile();closeSheet();renderShelf();toast(`Logged ${nU(k,used)}. ${Math.round(b.leftG)} left`);};
 }
 /* The journal entry a shelf bag belongs to: the saved link first, then a careful name match */
 function entryOfBag(b){
@@ -512,7 +619,7 @@ function photosOfBag(b){const e=entryOfBag(b);const own=photosOf(e);return own.l
 function openPastBags(){
   const P=state.shelf.filter(b=>b.leftG<=0).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
   openSheet(`${head('Past bags')}<h3>Past bags</h3><p class="lead">Coffees you’ve finished. Open one to refill it, or remove it from your shelf.</p>
-   <div class="pb-list">${P.map(b=>{const e=entryOfBag(b);return`<button class="pb" data-id="${b.id}"><span class="pb-n"><b>${esc(b.name)}</b><span class="muted">${b.bagG} g bag · roasted ${fmtD(parseD(b.roastDate)||today())}${b.updatedAt?' · finished '+fmtD(new Date(b.updatedAt)):''}</span></span>${e&&e.status==='rated'?`<span class="vtag v-${e.verdict}">${VL[e.verdict]||'Rated'}</span>`:'<span class="vtag v-torate">Not rated</span>'}</button>`;}).join('')}</div>`);
+   <div class="pb-list">${P.map(b=>{const e=entryOfBag(b);return`<button class="pb" data-id="${b.id}"><span class="pb-n"><b>${esc(b.name)}</b><span class="muted">${isServ(b)?esc(PTYPE[b.kind])+' · pack of '+b.bagG:b.bagG+' g bag · roasted '+fmtD(parseD(b.roastDate)||today())}${b.updatedAt?' · finished '+fmtD(new Date(b.updatedAt)):''}</span></span>${e&&e.status==='rated'?`<span class="vtag v-${e.verdict}">${VL[e.verdict]||'Rated'}</span>`:'<span class="vtag v-torate">Not rated</span>'}</button>`;}).join('')}</div>`);
   sheet.querySelectorAll('.pb').forEach(x=>x.onclick=()=>{const b=state.shelf.find(y=>y.id===x.dataset.id);if(b)openBagView(b);});
 }
 function openBrewLog(){
@@ -522,20 +629,20 @@ function openBrewLog(){
   const dl=k=>{const d=new Date(k),t=today(),y=new Date(+t-DAY);return d.toDateString()===t.toDateString()?'Today':d.toDateString()===y.toDateString()?'Yesterday':d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});};
   const total=L.reduce((a,x)=>a+x.g,0);
   openSheet(`${head('Brew history')}<h3>Brew history</h3><p class="lead">${L.length?`${L.length} cup${L.length===1?'':'s'} logged · ${Math.round(total)} g of coffee`:'Every time you tap “Brewed a cup” on your shelf, it’s logged here.'}</p>
-   ${Object.entries(byDay).map(([k,xs])=>`<div class="bl-day"><h4>${dl(k)} <span class="muted">· ${xs.length} cup${xs.length===1?'':'s'}, ${Math.round(xs.reduce((a,x)=>a+x.g,0))} g</span></h4>${xs.map(x=>`<div class="bl-row"><span class="bl-t">${tm(x.at)}</span><span class="bl-n">${esc(x.name)}</span><b>${x.g} g</b></div>`).join('')}</div>`).join('')}`);
+   ${Object.entries(byDay).map(([k,xs])=>`<div class="bl-day"><h4>${dl(k)} <span class="muted">· ${xs.length} cup${xs.length===1?'':'s'}${(g=>g?`, ${g} g`:'')(Math.round(xs.filter(x=>!x.u).reduce((a,x)=>a+x.g,0)))}</span></h4>${xs.map(x=>`<div class="bl-row"><span class="bl-t">${tm(x.at)}</span><span class="bl-n">${esc(x.name)}</span><b>${x.u&&SERV[x.u]?nU(x.u,x.g):x.g+' g'}</b></div>`).join('')}</div>`).join('')}`);
 }
 function openBagView(b){
   const f=fresh(b);const[adv,cls]=advice(b,f);const span=f.peak+30;const pct=d=>Math.max(0,Math.min(100,d/span*100));
   const bph=photosOfBag(b);
-  openSheet(`${head('On your shelf')}<div class="bv-top">${freshRing(f,150)}<div>${bph.length?`<span class="s-photo big" data-act="bagphoto" data-id="${b.id}" role="button" aria-label="See photos" style="background-image:url('${esc(bph[0].startsWith('data:')?bph[0]:imgW(bph[0],300))}')"></span>`:''}<h3>${esc(b.name)}</h3><p class="muted">${esc(cap(b.roastLevel))} roast · roasted ${fmtD(f.rd)}${b.openedDate?' · opened '+fmtD(parseD(b.openedDate)):''}</p></div></div>
-   <div class="tl-wrap"><div class="timeline"><span class="tl-rest" style="width:${pct(f.rest)}%"></span><span class="tl-peak" style="width:${pct(f.peak)-pct(f.rest)}%"></span><span class="tl-fade" style="width:${100-pct(f.peak)}%"></span></div><span class="tl-today" style="left:${pct(f.age)}%" data-l="Today"></span></div>
-   <div class="tl-legend"><span>Resting</span><span>Best</span><span>Fading</span></div>
+  openSheet(`${head('On your shelf')}<div class="bv-top">${ringOf(b,f,150)}<div>${bph.length?`<span class="s-photo big" data-act="bagphoto" data-id="${b.id}" role="button" aria-label="See photos" style="background-image:url('${esc(bph[0].startsWith('data:')?bph[0]:imgW(bph[0],300))}')"></span>`:''}<h3>${esc(b.name)}</h3><p class="muted">${f.serv?esc(PTYPE[b.kind])+(f.bestBy?' · best before '+fmtD(f.bestBy):''):esc(cap(b.roastLevel))+' roast · roasted '+fmtD(f.rd)}${!f.serv&&b.openedDate?' · opened '+fmtD(parseD(b.openedDate)):''}</p></div></div>
+   ${f.serv?'':`<div class="tl-wrap"><div class="timeline"><span class="tl-rest" style="width:${pct(f.rest)}%"></span><span class="tl-peak" style="width:${pct(f.peak)-pct(f.rest)}%"></span><span class="tl-fade" style="width:${100-pct(f.peak)}%"></span></div><span class="tl-today" style="left:${pct(f.age)}%" data-l="Today"></span></div>
+   <div class="tl-legend"><span>Resting</span><span>Best</span><span>Fading</span></div>`}
    <p class="advice ${cls}">${adv}</p>
    ${(()=>{const e=entryOfBag(b);return e?`<div class="bv-rate">${e.status==='rated'?`<span>Your rating</span><span class="vtag v-${e.verdict}">${VL[e.verdict]||'Rated'}</span><button class="btn quiet small" id="bvRate">See or change</button>`:`<span>Not rated yet</span><button class="btn ghost small" id="bvRate">Rate it</button>`}</div>`:'';})()}
-   <div class="row c2" style="margin-top:18px"><div class="field"><label for="bvLeft">Grams left</label><input id="bvLeft" type="number" min="0" value="${Math.round(b.leftG)}"></div><div class="field"><label>&nbsp;</label>${!b.openedDate?'<button class="btn ghost" id="bvOpen" style="width:100%">Opened today</button>':''}</div></div>
+   <div class="row c2" style="margin-top:18px"><div class="field"><label for="bvLeft">${f.serv?cap(uWord(b.kind,2)):'Grams'} left</label><input id="bvLeft" type="number" min="0" value="${Math.round(b.leftG)}"></div><div class="field"><label>&nbsp;</label>${!b.openedDate&&!f.serv?'<button class="btn ghost" id="bvOpen" style="width:100%">Opened today</button>':''}</div></div>
    <div class="sheet-foot"><span class="actions"><button class="btn quiet" id="bvEdit">Edit details</button><button class="btn quiet danger" id="bvDone">Finished</button></span><button class="btn accent" id="bvSave">Save</button></div>`);
   const touch=()=>{b.updatedAt=Date.now();state.settings.shelfCheckedAt=Date.now();saveBag(b);saveProfile();renderShelf();};
-  $('#bvSave').onclick=()=>{const v=Math.max(0,+$('#bvLeft').value||0);if(v>b.bagG){toast(`That’s more than the ${b.bagG} g bag. Refilled it? Tap Edit details and change the bag size.`);$('#bvLeft').focus();return;}b.leftG=v;touch();closeSheet();toast('Updated');};
+  $('#bvSave').onclick=()=>{const v=Math.max(0,+$('#bvLeft').value||0);if(v>b.bagG){toast(f.serv?`That’s more than the pack of ${b.bagG}. Bought more? Tap Edit details and change the pack size.`:`That’s more than the ${b.bagG} g bag. Refilled it? Tap Edit details and change the bag size.`);$('#bvLeft').focus();return;}b.leftG=v;touch();closeSheet();toast('Updated');};
   const o=$('#bvOpen');if(o)o.onclick=()=>{b.openedDate=isoD(today());touch();openBagView(b);};
   $('#bvEdit').onclick=()=>openBag(b);
   const br=$('#bvRate');if(br)br.onclick=()=>{const e=entryOfBag(b);if(!e)return;draft=e;if(e.status==='rated')renderResult(false);else renderRate();};
@@ -579,6 +686,9 @@ function hidePick(p){const h=new Set(state.settings.hidden||[]);h.add(p.id||keyO
 const wrap=$('#sheetWrap'), sheet=$('#sheet');
 let lastFocus=null;
 /* ---------- Full-screen photo viewer: swipe between photos, pinch or double-tap to zoom, Back or × to close ---------- */
+let overlay=null;
+function openOverlay(el){document.body.appendChild(el);overlay=el;document.body.style.overflow='hidden';pushStep('overlay');setTimeout(()=>el.classList.add('on'),10);}
+function closeOverlay(fromPop){if(!overlay)return;const v=overlay;overlay=null;document.body.style.overflow='';v.classList.remove('on');setTimeout(()=>v.remove(),200);if(!fromPop&&history.state&&history.state.ck==='overlay')history.back();}
 let viewer=null;
 function openViewer(urls,start){
   urls=(urls||[]).filter(Boolean);if(!urls.length)return;
@@ -617,6 +727,7 @@ let afterClose=null;
 function pushStep(kind){try{history.pushState({ck:kind},'');}catch(e){}}
 addEventListener('popstate',()=>{
   if(viewer){closeViewer(true);return;}
+  if(overlay){closeOverlay(true);return;}
   if(wrap.classList.contains('on')){doClose();const f=afterClose;afterClose=null;f&&f();return;}
   if(xAll){xAll=false;renderExplore();document.getElementById('explore').scrollIntoView();}
 });
@@ -635,12 +746,21 @@ sheet.addEventListener('click',e=>{const c=e.target.closest('[data-close]');if(!
   const h=c.getAttribute('href');if(h&&h.startsWith('#')){e.preventDefault();closeSheet(()=>{const t=document.getElementById(h.slice(1));t&&t.scrollIntoView();});}else closeSheet();});
 
 /* ---------- quiz ---------- */
-const QUIZ=SITE.quiz.map(q=>({k:q.key,q:q.q,lead:q.lead,multi:!!q.multi,max:q.max,opts:q.options}));
+const QUIZ=SITE.quiz.map(q=>({k:q.key,q:q.q,lead:q.lead,multi:!!q.multi,max:q.max,opts:q.options,from:q.from,cond:q.if}));
+/* Brew styles: what someone drinks shapes the questions and the suggestions; their taste shapes the personality */
+const BREWER=['pourover','espresso','frenchpress'];
+const STYLE_NAME={pourover:'pour-over',espresso:'espresso',frenchpress:'French press',filter:'South Indian filter',coldbrew:'cold brew',instant:'instant',cafe:'café drinks'};
+const stylesOf=pr=>(pr&&pr.styles&&pr.styles.length?pr.styles:null);
+const mainOf=pr=>{const st=stylesOf(pr)||[];return st.includes(pr?.main)?pr.main:st[0]||null;};
+const qOn=Q=>{if(!Q.cond)return true;const[t,v]=Q.cond.split(':');const m=mainOf(qa);
+  if(t==='many')return(qa[v]||[]).length>1;if(t==='main')return v==='brewer'?BREWER.includes(m):m===v;if(t==='notmain')return m!==v;return true;};
+const qOpts=Q=>Q.from?(QUIZ.find(x=>x.k===Q.from).opts.filter(o=>(qa[Q.from]||[]).includes(o[0]))):Q.opts;
+const qVisible=()=>QUIZ.map((Q,i)=>i).filter(i=>qOn(QUIZ[i]));
 let qi=0, qa={};
 function showGuestResult(){
   const P=personality(target());
   openSheet(`${head('Your Coffee Personality')}<div class="guest-res"><span class="kicker">You are</span><h2 class="tid-name">${esc(P.name)}</h2>
-   <p class="tid-desc">${esc(palateSentence())} ${esc(P.text)}</p>${P.look?`<p class="tid-look"><span>You tend to enjoy</span>${esc(P.look)}</p>`:''}
+   <p class="tid-desc">${esc(palateSentence())} ${esc(P.text)}</p>${P.look?`<p class="tid-look"><span>You tend to enjoy</span>${esc(P.look)}</p>`:''}${styleTip(P,state.prefs)}
    <div class="actions"><button class="btn accent big" id="grSave">Save it – create a free account</button><button class="btn ghost" data-act="sharecard">Share my personality</button></div>
    <p class="muted fine">Free. Then rate the coffees you drink and get matched to real coffees from specialty roasters.</p></div>`);
   $('#grSave').onclick=()=>closeSheet(()=>{showAuth(knownDevice()?'signin':'signup');setTimeout(()=>{scrollTo({top:document.getElementById('app').offsetTop,behavior:'instant'});const f=$('#aName')||$('#aEmail');f&&f.focus({preventScroll:true});},80);});
@@ -650,23 +770,25 @@ function openQuiz(){qa=JSON.parse(JSON.stringify(state.prefs||{}));qi=0;renderQu
 const PENDING='ck-pending-prefs';
 const signedIn=()=>document.body.classList.contains('signed-in');
 function renderQuiz(){
-  const Q=QUIZ[qi];const val=qa[Q.k];
+  const Q=QUIZ[qi];const val=qa[Q.k];const opts=qOpts(Q);const vis=qVisible(),pos=Math.max(0,vis.indexOf(qi));
   const sel=v=>Q.multi?(val||[]).includes(v):val===v;
-  openSheet(`${head(`Question ${qi+1} of ${QUIZ.length}`)}<div class="progress"><i style="width:${(qi/QUIZ.length*100).toFixed(0)}%"></i></div>
+  openSheet(`${head(`Question ${pos+1} of ${vis.length}`)}<div class="progress"><i style="width:${(pos/vis.length*100).toFixed(0)}%"></i></div>
    <h3>${Q.q}</h3><p class="lead">${Q.lead||(Q.multi?'Pick any that apply.':'Pick one.')}</p>
-   <div class="opts ${Q.opts.length>4?'two':''}">${Q.opts.map(([v,b,s])=>`<button class="opt" data-v="${v}" aria-pressed="${sel(v)}"><b>${b}</b>${s?`<span>${s}</span>`:''}</button>`).join('')}</div>
+   <div class="opts ${opts.length>4?'two':''}">${opts.map(([v,b,s])=>`<button class="opt" data-v="${v}" aria-pressed="${sel(v)}"><b>${b}</b>${s?`<span>${s}</span>`:''}</button>`).join('')}</div>
    <div class="sheet-foot"><button class="btn quiet" data-q="back" ${qi===0?'style="visibility:hidden"':''}>Back</button>
-   ${Q.multi?`<button class="btn accent" data-q="next">${qi===QUIZ.length-1?'Finish':'Next'}</button>`:''}</div>`);
+   ${Q.multi?`<button class="btn accent" data-q="next">${pos===vis.length-1?'Finish':'Next'}</button>`:''}</div>`);
   sheet.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{
-    let v=o.dataset.v;if(typeof Q.opts[0][0]==='number')v=+v;
+    let v=o.dataset.v;if(typeof opts[0][0]==='number')v=+v;
     if(Q.multi){const a=new Set(qa[Q.k]||[]);if(a.has(v))a.delete(v);else{if(Q.max&&a.size>=Q.max)return toast(`Pick up to ${Q.max}`);a.add(v);}qa[Q.k]=[...a];o.setAttribute('aria-pressed',a.has(v));}
     else{qa[Q.k]=v;sheet.querySelectorAll('.opt').forEach(x=>x.setAttribute('aria-pressed',x===o));setTimeout(nextQ,180);}
   });
-  sheet.querySelector('[data-q=back]').onclick=()=>{qi=Math.max(0,qi-1);renderQuiz();};
+  sheet.querySelector('[data-q=back]').onclick=()=>{const v=qVisible(),k=v.indexOf(qi);qi=k>0?v[k-1]:v[0];renderQuiz();};
   const nx=sheet.querySelector('[data-q=next]');if(nx)nx.onclick=nextQ;
 }
 function nextQ(){
-  if(qi<QUIZ.length-1){qi++;renderQuiz();return;}
+  const Q=QUIZ[qi];if(Q.multi&&Q.k==='styles'&&!(qa.styles||[]).length)return toast('Pick at least one');
+  const nx=qVisible().find(i=>i>qi);if(nx!=null){qi=nx;renderQuiz();return;}
+  qa.main=mainOf(qa);if(qa.main==='coldbrew'&&qa.cbserve)qa.milk=qa.cbserve==='black'?'black':'milk';qa.brew=(qa.styles||[]).filter(x=>x!=='cafe');
   qa.sweetness=qa.sweetness||((qa.flavours||[]).some(f=>['caramel','chocolate','fruity'].includes(f))?4:3);
   qa.country=qa.country||'India';
   if(!signedIn()){try{localStorage.setItem(PENDING,JSON.stringify(qa));}catch(e){}state.prefs=qa;return showGuestResult();}
@@ -781,7 +903,7 @@ function entryExtras(e){
    <div class="actions sec">${!onShelf?'<button class="btn ghost small" id="eShelf">Add to shelf</button>':''}<button class="btn quiet small danger" id="eDel">Remove from journal</button></div>`;
 }
 function wireExtras(e){
-  const sh=$('#eShelf');if(sh)sh.onclick=()=>{closeSheet();openBag({name:e.name+(e.roaster?' · '+e.roaster:''),roastLevel:e.roastLevel,entryId:e.id});};
+  const sh=$('#eShelf');if(sh)sh.onclick=()=>{closeSheet();openBag({name:e.name+(e.roaster?' · '+e.roaster:''),roastLevel:e.roastLevel,entryId:e.id,kind:ptype((e.catalogId&&catById.get(e.catalogId))||e)});};
   const d=$('#eDel');d.onclick=()=>{if(d.dataset.sure){state.journal=state.journal.filter(x=>x.id!==e.id);delEntry(e.id);closeSheet();renderAll();toast('Removed');}else{d.dataset.sure=1;d.textContent='Tap again to remove';}};
 }
 const CLAIMS=[['acidity','Acidity',true],['body','Body',true],['sweetness','Sweetness',true],['bitterness','Bitterness',true],['notes','Tasting notes',false],['roast','Roast level',false]];
@@ -803,8 +925,8 @@ function renderRate(){
    <div class="sec"><div class="field"><label for="rNotes">Notes</label><textarea id="rNotes" placeholder="What did you taste? Grind, ratio, anything you’d change.">${esc(e.myNotes)}</textarea></div>
    <div class="row c2"><div class="field"><label for="rBrew">Brewed with</label><select id="rBrew">${Object.entries(BREWS).map(([k,v])=>`<option value="${k}" ${k===e.brew?'selected':''}>${v}</option>`).join('')}</select></div>
    <div class="field"><label for="rBought">Bought on</label><input id="rBought" type="date" value="${esc(e.purchased||isoD(today()))}"></div></div></div>
-   ${e._new&&!state.shelf.some(b=>b.entryId===e.id)?`<div class="sec"><label class="toggle"><input type="checkbox" id="rShelf"> I have this bag at home: add it to my shelf</label>
-     <div class="row c3" id="rShelfF" hidden style="margin-top:12px"><div class="field"><label for="rRD">Roasted on</label><input id="rRD" type="date" value="${esc(e.roastDate||'')}"></div><div class="field"><label for="rBag">Bag (g)</label><input id="rBag" type="number" min="1" value="${e.netWeightG||250}"></div><div class="field"><label for="rLeft">Grams left</label><input id="rLeft" type="number" min="0" value="${e.netWeightG||250}"></div></div></div>`:''}
+   ${e._new&&!state.shelf.some(b=>b.entryId===e.id)?(K=>`<div class="sec"><label class="toggle"><input type="checkbox" id="rShelf" data-k="${K||''}"> I have ${K?'some':'this bag'} at home: add it to my shelf</label>
+     <div class="row ${K?'c2':'c3'}" id="rShelfF" hidden style="margin-top:12px">${K?'':`<div class="field"><label for="rRD">Roasted on</label><input id="rRD" type="date" value="${esc(e.roastDate||'')}"></div>`}<div class="field"><label for="rBag">${K?cap(uWord(K,2))+' in a full box':'Bag (g)'}</label><input id="rBag" type="number" min="1" value="${K?SERV[K][2]:e.netWeightG||250}"></div><div class="field"><label for="rLeft">${K?cap(uWord(K,2)):'Grams'} left</label><input id="rLeft" type="number" min="0" value="${K?SERV[K][2]:e.netWeightG||250}"></div></div></div>`)((k=>SERV[k]?k:null)(ptype((e.catalogId&&catById.get(e.catalogId))||e))):''}
    <div class="sheet-foot"><button class="btn quiet" id="rBack">Back</button><button class="btn accent big" id="rSave">Save rating</button></div>`);
   sheet.querySelectorAll('#verdicts button').forEach(b=>b.onclick=()=>{e.verdict=b.dataset.v;sheet.querySelectorAll('#verdicts button').forEach(x=>x.setAttribute('aria-pressed',x===b));});
   const drawClaims=()=>{const el=$('#claims');if(!el)return;el.innerHTML=claims.map(([k,n,num])=>{const r=e.ratings[k]||{};return`<div class="claim" data-k="${k}"><div><b>${n}</b><span class="val">${esc(claimSrc(e,k))}: ${esc(claimVal(e,k))}</span></div>
@@ -818,8 +940,10 @@ function renderRate(){
     if(!e.verdict)return toast('Pick how it was first');
     e.myNotes=$('#rNotes').value.trim();e.brew=$('#rBrew').value;e.purchased=$('#rBought').value;
     let bag=null;
-    if($('#rShelf')?.checked&&(+$('#rLeft').value||0)>(+$('#rBag').value||250)){toast('Grams left can’t be more than the bag size.');$('#rLeft').focus();return;}
-    if($('#rShelf')?.checked){const rd=$('#rRD').value;bag={id:uid(),entryId:e.id,name:e.name+(e.roaster?' · '+e.roaster:''),roastLevel:e.roastLevel||'medium',roastDate:rd||isoD(today()),roastDateGuessed:!rd,openedDate:'',bagG:+$('#rBag').value||250,leftG:+$('#rLeft').value||0,doseG:15,cupsPerDay:1,updatedAt:Date.now()};}
+    if($('#rShelf')?.checked&&(+$('#rLeft').value||0)>(+$('#rBag').value||250)){toast($('#rShelf').dataset.k?'That’s more than the pack size.':'Grams left can’t be more than the bag size.');$('#rLeft').focus();return;}
+    const K=$('#rShelf')?.dataset.k;
+    if($('#rShelf')?.checked&&K){bag={id:uid(),entryId:e.id,kind:K,name:e.name+(e.roaster?' · '+e.roaster:''),roastLevel:e.roastLevel||'medium',roastDate:isoD(today()),roastDateGuessed:true,openedDate:'',bagG:+$('#rBag').value||SERV[K][2],leftG:+$('#rLeft').value||0,doseG:1,cupsPerDay:1,updatedAt:Date.now()};}
+    else if($('#rShelf')?.checked){const rd=$('#rRD').value;bag={id:uid(),entryId:e.id,name:e.name+(e.roaster?' · '+e.roaster:''),roastLevel:e.roastLevel||'medium',roastDate:rd||isoD(today()),roastDateGuessed:!rd,openedDate:'',bagG:+$('#rBag').value||250,leftG:+$('#rLeft').value||0,doseG:15,cupsPerDay:1,updatedAt:Date.now()};}
     e.status='rated';delete e.suggestions;
     commit(e);if(bag){state.shelf.push(bag);saveBag(bag);}
     closeSheet();renderAll();document.getElementById('journal').scrollIntoView({behavior:'smooth'});
@@ -831,21 +955,34 @@ function openEntry(id){const e=state.journal.find(x=>x.id===id);if(!e)return;dra
 
 /* ---------- bag form ---------- */
 function openBag(b){
-  const edit=b&&b.id;b=b||{};
-  openSheet(`${head(edit?'Edit bag':'Add a bag')}<h3>${edit?'Edit bag':'Add a bag to your shelf'}</h3><p class="lead">The roast date matters most. It’s usually printed on the back or bottom of the bag.</p>
+  const edit=b&&b.id;b=b||{};let kind=SERV[b.kind]?b.kind:'beans';
+  const KINDS=[['beans','Beans or ground (by weight)'],['instant','Instant (servings or sachets)'],['dripbag','Drip bags'],['coldbrew','Cold brew packs'],['rtd','Ready to drink (bottles or cans)']];
+  openSheet(`${head(edit?'Edit':'Add to shelf')}<h3>${edit?'Edit details':'Add to your shelf'}</h3><p class="lead" id="bLead"></p>
+   <div class="field"><label for="bKind">What is it?</label><select id="bKind">${KINDS.map(([k,l])=>`<option value="${k}" ${k===kind?'selected':''}>${l}</option>`).join('')}</select></div>
    <div class="field"><label for="bName">Coffee</label><input id="bName" type="text" value="${esc(b.name||'')}" placeholder="e.g. Ratnagiri Estate, washed" autofocus></div>
-   <div class="row c2"><div class="field"><label for="bRoast">Roast</label><select id="bRoast">${['light','medium-light','medium','medium-dark','dark'].map(v=>`<option value="${v}" ${(b.roastLevel||'medium')===v?'selected':''}>${cap(v)}</option>`).join('')}</select></div>
+   <div data-g class="row c2"><div class="field"><label for="bRoast">Roast</label><select id="bRoast">${['light','medium-light','medium','medium-dark','dark'].map(v=>`<option value="${v}" ${(b.roastLevel||'medium')===v?'selected':''}>${cap(v)}</option>`).join('')}</select></div>
    <div class="field"><label for="bRD">Roasted on</label><input id="bRD" type="date" max="${isoD(today())}" value="${b.roastDateGuessed?'':esc(b.roastDate||'')}"></div></div>
-   <div class="row c2"><div class="field"><label for="bOpened">Opened on (if opened)</label><input id="bOpened" type="date" value="${esc(b.openedDate||'')}"></div><div class="field"><label for="bBag">Bag size (g)</label><input id="bBag" type="number" min="1" value="${b.bagG||250}"></div></div>
-   <div class="row c3"><div class="field"><label for="bLeft">Grams left</label><input id="bLeft" type="number" min="0" value="${b.leftG??b.bagG??250}"></div><div class="field"><label for="bDose">Grams per cup</label><input id="bDose" type="number" min="1" value="${b.doseG||15}"></div><div class="field"><label for="bCpd">Cups per day</label><input id="bCpd" type="number" min="0.5" step="0.5" value="${b.cupsPerDay||1}"></div></div>
-   <div class="sheet-foot"><span></span><button class="btn accent big" id="bSave">${edit?'Save bag':'Add to shelf'}</button></div>`);
+   <div class="row c2"><div class="field" data-g><label for="bOpened">Opened on (if opened)</label><input id="bOpened" type="date" value="${esc(b.openedDate||'')}"></div><div class="field" data-s hidden><label for="bBest">Best before (optional)</label><input id="bBest" type="date" value="${esc(b.bestBy||'')}"></div><div class="field"><label for="bBag" id="bBagL"></label><input id="bBag" type="number" min="1" value="${b.bagG||250}"></div></div>
+   <div class="row c3" id="bNums"><div class="field"><label for="bLeft" id="bLeftL"></label><input id="bLeft" type="number" min="0" value="${b.leftG??b.bagG??250}"></div><div class="field" data-g><label for="bDose">Grams per cup</label><input id="bDose" type="number" min="1" value="${b.doseG||15}"></div><div class="field"><label for="bCpd">Cups per day</label><input id="bCpd" type="number" min="0.5" step="0.5" value="${b.cupsPerDay||1}"></div></div>
+   <div class="sheet-foot"><span></span><button class="btn accent big" id="bSave">${edit?'Save':'Add to shelf'}</button></div>`);
+  const sv=()=>!!SERV[kind];
+  const lay=first=>{const S=sv();sheet.querySelectorAll('[data-g]').forEach(x=>x.hidden=S);sheet.querySelectorAll('[data-s]').forEach(x=>x.hidden=!S);
+    $('#bNums').className='row '+(S?'c2':'c3');
+    $('#bLead').textContent=S?`Counted in ${uWord(kind,2)}, not grams. Tap “Had one” each time you use one.`:'The roast date matters most. It’s usually printed on the back or bottom of the bag.';
+    $('#bBagL').textContent=S?`${cap(uWord(kind,2))} in a full box`:'Bag size (g)';$('#bLeftL').textContent=S?`${cap(uWord(kind,2))} left`:'Grams left';
+    if(!first){const n=S?SERV[kind][2]:250;$('#bBag').value=n;$('#bLeft').value=n;}};
+  lay(!!(edit||b.bagG));$('#bKind').onchange=e=>{kind=e.target.value;lay(!!edit);};
   $('#bSave').onclick=()=>{
     const name=$('#bName').value.trim();if(!name){toast('Add the coffee’s name');$('#bName').focus();return;}
-    if(!$('#bRD').value){toast('Add the roast date');$('#bRD').focus();return;}
-    if((+$('#bLeft').value||0)>(+$('#bBag').value||250)){toast('Grams left can’t be more than the bag size. Refilled it? Raise the bag size too.');$('#bLeft').focus();return;}
+    const S=sv();
+    if(!S&&!$('#bRD').value){toast('Add the roast date');$('#bRD').focus();return;}
+    if((+$('#bLeft').value||0)>(+$('#bBag').value||250)){toast(S?'That’s more than the pack size. Raise the pack size too.':'Grams left can’t be more than the bag size. Refilled it? Raise the bag size too.');$('#bLeft').focus();return;}
     const t=edit?b:{id:uid(),entryId:b.entryId||null};
-    Object.assign(t,{name,roastLevel:$('#bRoast').value,roastDate:$('#bRD').value,roastDateGuessed:false,openedDate:$('#bOpened').value,bagG:Math.max(1,+$('#bBag').value||250),leftG:Math.max(0,+$('#bLeft').value||0),doseG:Math.max(1,+$('#bDose').value||15),cupsPerDay:Math.max(.5,+$('#bCpd').value||1),updatedAt:Date.now()});
-    if(!edit)state.shelf.push(t);state.settings.shelfCheckedAt=Date.now();saveBag(t);saveProfile();closeSheet();renderAll();toast(edit?'Bag saved':'Added to shelf');
+    Object.assign(t,S?{kind,bestBy:$('#bBest').value,roastLevel:t.roastLevel||'medium',roastDate:t.roastDate||isoD(today()),roastDateGuessed:true,doseG:1}
+      :{kind:undefined,bestBy:undefined,roastLevel:$('#bRoast').value,roastDate:$('#bRD').value,roastDateGuessed:false,openedDate:$('#bOpened').value,doseG:Math.max(1,+$('#bDose').value||15)});
+    if(!S){delete t.kind;delete t.bestBy;}
+    Object.assign(t,{name,bagG:Math.max(1,+$('#bBag').value||250),leftG:Math.max(0,+$('#bLeft').value||0),cupsPerDay:Math.max(.5,+$('#bCpd').value||1),updatedAt:Date.now()});
+    if(!edit)state.shelf.push(t);state.settings.shelfCheckedAt=Date.now();saveBag(t);saveProfile();closeSheet();renderAll();toast(edit?'Saved':'Added to shelf');
   };
 }
 
@@ -964,7 +1101,7 @@ async function mountGoogle(btn){
   }catch(e){/* keep the plain button */}
 }
 function showAuth(mode){
-  authMode=mode||authMode;document.body.classList.remove('signed-in');
+  authMode=mode||authMode;document.body.classList.remove('signed-in');renderWall();
   const L=SITE.login||{};
   const box=$('#auth');
   const F={
@@ -980,7 +1117,7 @@ function showAuth(mode){
     password:'<div class="field"><label for="aPass">Password</label><input id="aPass" type="password" autocomplete="current-password" required></div>',
     newpassword:'<div class="field"><label for="aPass">Password</label><input id="aPass" type="password" autocomplete="new-password" minlength="8" required><span class="muted">At least 8 characters.</span></div>'
   };
-  box.innerHTML=`<div class="auth-wrap"><div class="auth-intro"><span class="kicker">${esc(SITE.brand)}</span><h2>${esc(L.title||'')}</h2><p>${esc(L.sub||'')}</p></div>
+  box.innerHTML=`<div class="auth-wrap"><div class="auth-intro"><span class="kicker">${esc(SITE.brand)}</span><h2>${esc(L.title||'')}</h2><p>${esc(L.sub||'')}</p>${featList(L.features)}</div>
    <form class="auth-card" id="authForm" novalidate data-x="1">${authMode==='signin'||authMode==='signup'?`<div class="auth-tabs" role="tablist"><button type="button" role="tab" data-auth="signin" aria-selected="${authMode==='signin'}">Sign in</button><button type="button" role="tab" data-auth="signup" aria-selected="${authMode==='signup'}">Create account</button></div>`:''}<h3>${F.h}</h3>${googleOn&&(authMode==='signin'||authMode==='signup')?`<button type="button" class="btn google" id="aGoogle">${GOOGLE_G}<span>Continue with Google</span></button><div class="or"><span>or with email</span></div>`:''}${authMode==='sent'?`<p class="muted">${esc(box.dataset.msg||'')}</p>
      <div class="spamtip"><b>Not in your inbox after a minute?</b> Check your <b>Spam</b> or <b>Promotions</b> folder. Yahoo, Outlook and Hotmail often file new senders there. If you find it, mark it “Not spam” so the next emails arrive normally.</div>
      ${box.dataset.resend?`<button class="btn ghost" type="button" id="aResend">Resend the email</button><p class="status" id="aResendMsg"></p>`:''}`:''}
@@ -1041,6 +1178,8 @@ document.addEventListener('click',e=>{
   if(act==='coffee'){const p=catById.get(a.dataset.id);if(p)openCoffee(p);return;}
   if(act==='types')return openTypes();
   if(act==='brewlog')return openBrewLog();
+  if(act==='nsexplore'){xstyle=stylesOf(state.prefs)?.includes(a.dataset.s)?a.dataset.s:'mine';xAll=false;renderExplore();return document.getElementById('explore')?.scrollIntoView({behavior:'smooth'});}
+  if(act==='nslater'){state.settings.nextHide={k:a.dataset.k,until:Date.now()+21*DAY};saveProfile();renderProfile();return toast('Okay. We’ll suggest it again in a few weeks.');}
   if(act==='photos'){const e=state.journal.find(x=>x.id===a.dataset.id)||draft;return openViewer(photosOf(e),0);}
   if(act==='bagphoto'){const b=state.shelf.find(x=>x.id===a.dataset.id);return b&&openViewer(photosOfBag(b),0);}
   if(act==='install')return installApp();
@@ -1132,9 +1271,11 @@ async function personalityCard(){
   const W=1080,H=1920,cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');
   const ACC='#D4B08C',INK='#F3ECE4',DIM='#A99E93',UI='"Bricolage Grotesque", system-ui, sans-serif',ST='Literata, Georgia, serif';
   const bg=g.createRadialGradient(W/2,560,60,W/2,700,1250);bg.addColorStop(0,'#2A1C13');bg.addColorStop(.55,'#120D0A');bg.addColorStop(1,'#060505');g.fillStyle=bg;g.fillRect(0,0,W,H);
-  const wrap=(t,x,y,max,lh,font,col,maxLines=6)=>{g.font=font;g.fillStyle=col;const w=String(t).split(/\s+/);let line='',n=0;
-    for(const word of w){const tst=line?line+' '+word:word;if(g.measureText(tst).width>max&&line){g.fillText(line,x,y);y+=lh;line=word;if(++n>=maxLines-1){break;}}else line=tst;}
-    if(line){g.fillText(line,x,y);y+=lh;}return y;};
+  /* Break text into lines that fit; if it needs more than maxLines, the last line ends with “…” rather than being cut silently */
+  const lines=(t,max,font)=>{g.font=font;const out=[];let line='';for(const word of String(t).split(/\s+/)){const tst=line?line+' '+word:word;if(g.measureText(tst).width>max&&line){out.push(line);line=word;}else line=tst;}if(line)out.push(line);return out;};
+  const wrap=(t,x,y,max,lh,font,col,maxLines=6)=>{let L=lines(t,max,font);
+    if(L.length>maxLines){L=L.slice(0,maxLines);let last=L[maxLines-1].replace(/[\s,;:.–-]+$/,'');while(last&&g.measureText(last+'…').width>max)last=last.replace(/\s*\S+$/,'');L[maxLines-1]=last+'…';}
+    g.font=font;g.fillStyle=col;L.forEach(l=>{g.fillText(l,x,y);y+=lh;});return y;};
   g.textAlign='center';
   g.font=`600 34px ${UI}`;g.fillStyle=ACC;g.letterSpacing='8px';g.fillText('COFFEEKO',W/2,220);g.letterSpacing='0px';
   g.font=`italic 400 46px ${ST}`;g.fillStyle=DIM;g.fillText('My coffee personality is',W/2,350);
@@ -1157,7 +1298,8 @@ async function personalityCard(){
   const bx=150,bw=W-300;
   bars.slice(0,3).forEach(([n,v,lo,hi])=>{g.textAlign='left';g.font=`600 30px ${UI}`;g.fillStyle=INK;g.fillText(n,bx,y);g.textAlign='right';g.font=`400 26px ${UI}`;g.fillStyle=DIM;g.fillText(`${lo} · ${hi}`,bx+bw,y);
     g.fillStyle='rgba(243,236,228,.12)';g.beginPath();g.roundRect(bx,y+18,bw,12,6);g.fill();g.fillStyle=ACC;g.beginPath();g.roundRect(bx,y+18,Math.max(14,bw*(v-1)/4),12,6);g.fill();y+=86;});
-  if(P.look){g.textAlign='center';y=wrap('Look for: '+P.look,W/2,y+10,W-220,46,`italic 400 32px ${ST}`,DIM,2);}
+  if(P.look){g.textAlign='center';const LF=`italic 400 32px ${ST}`;let it=P.look.split(/,\s*/);   /* drop whole items, never half of one */
+    while(it.length>1&&lines('Look for: '+it.join(', '),W-220,LF).length>2)it.pop();y=wrap('Look for: '+it.join(', '),W/2,y+10,W-220,46,LF,DIM,2);}
   // footer
   g.textAlign='center';g.fillStyle=ACC;g.beginPath();g.roundRect(W/2-330,H-260,660,110,55);g.fill();
   g.font=`700 44px ${UI}`;g.fillStyle='#0B0807';g.fillText("What's yours?  coffeeko.in",W/2,H-190);

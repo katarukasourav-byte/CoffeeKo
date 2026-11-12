@@ -98,6 +98,13 @@ window.SITE = {
   login: {
     title: 'Your coffee, remembered.',
     sub: 'Take a one-minute quiz, rate the coffees you drink, and get matched to real coffees from specialty roasters. Free.',
+    /* What you can do here: shown next to the sign-up form so visitors see the features before signing up */
+    features: [
+      ['persona', 'Find your coffee personality', 'A one-minute quiz. Share it as an Instagram story card.'],
+      ['match',   'Get matched to real coffees', 'Picks from your quiz, sharpened by every coffee you rate.'],
+      ['journal', 'Rate what you drink', 'Snap the bag, rate the cup, see your coffees on a world map.'],
+      ['shelf',   'Track your shelf', 'How much is left, when it’s at its best, one tap per brew.'],
+      ['buy',     'Buy straight from roasters', 'Every coffee links to the roaster’s own shop.'] ],
     signupTitle: 'Build your coffee personality',
     signupButton: 'Create my account'
   },
@@ -125,19 +132,26 @@ window.SITE = {
      multi: true lets people pick several answers; max limits how many.
      options: [stored value, label, small hint]. */
   quiz: [
-    { key: 'from', q: 'What do you drink most days?', options: [
-      ['instant', 'Instant coffee', 'Nescafé, Bru, Davidoff'],
-      ['cafe', 'Café drinks', 'Lattes, cappuccinos'],
-      ['filter', 'Filter coffee', 'South Indian decoction'],
-      ['home', 'Specialty at home', 'I already brew beans'] ] },
-    { key: 'milk', q: 'How do you take it?', options: [
+    { key: 'styles', multi: true, q: 'How do you usually have your coffee?', lead: 'Pick all that apply.', options: [
+      ['pourover', 'Pour-over', 'V60, Chemex, AeroPress'], ['espresso', 'Espresso', 'Machine or moka pot'],
+      ['frenchpress', 'French press', ''], ['filter', 'South Indian filter', 'Decoction, with or without chicory'],
+      ['coldbrew', 'Cold brew', 'Steeped cold, or brew bags'], ['instant', 'Instant', 'Quick and easy'],
+      ['cafe', 'Mostly at cafés', 'Lattes, cappuccinos'] ] },
+    /* only when more than one style is picked: the options are the styles they picked */
+    { key: 'main', from: 'styles', if: 'many:styles', q: 'Which do you have most often?', lead: 'We’ll lead with this, and still show the rest.' },
+    /* one extra question for the main style */
+    { key: 'form', if: 'main:brewer', q: 'Beans or ground coffee?', options: [
+      ['beans', 'Whole beans', 'I grind at home'], ['ground', 'Ground coffee', 'Ready to brew'], ['either', 'Either', 'Happy with both'] ] },
+    { key: 'chicory', if: 'main:filter', q: 'Chicory in your filter coffee?', options: [
+      ['none', 'No chicory', 'Pure coffee'], ['some', 'A little', 'Up to about 20%'], ['classic', 'Classic blend', 'Around 30% or more'], ['unsure', 'Not sure', ''] ] },
+    { key: 'cbserve', if: 'main:coldbrew', q: 'How do you have cold brew?', options: [
+      ['black', 'Black over ice', 'Smooth and clean'], ['milk', 'With milk', 'Creamy, sometimes sweet'], ['concentrate', 'As a concentrate', 'Mixed into drinks'] ] },
+    { key: 'strength', if: 'main:instant', q: 'How strong do you like it?', options: [
+      ['mild', 'Mild', 'One small spoon'], ['regular', 'Regular', ''], ['strong', 'Strong', 'A heaped spoon or two'] ] },
+    { key: 'milk', if: 'notmain:coldbrew', q: 'How do you take it?', options: [
       ['black', 'Black', 'No milk, no sugar'],
       ['milk', 'With milk', 'Milk or sugar, usually'],
       ['both', 'Either', 'Depends on the coffee'] ] },
-    { key: 'brew', multi: true, q: 'How do you brew, or want to?', lead: 'Pick any that apply.', options: [
-      ['pourover', 'Pour-over', 'V60, Chemex'], ['aeropress', 'AeroPress', ''], ['frenchpress', 'French press', ''],
-      ['filter', 'South Indian filter', ''], ['moka', 'Moka pot', ''], ['espresso', 'Espresso machine', ''],
-      ['unsure', 'Not sure yet', 'Help me choose'] ] },
     { key: 'flavours', multi: true, max: 4, q: 'Which flavours sound good?', lead: 'Pick up to four.', options: [
       ['chocolate', 'Chocolate', 'Cocoa, dark chocolate'], ['nutty', 'Nutty', 'Almond, hazelnut'],
       ['caramel', 'Caramel & sweet', 'Toffee, jaggery, honey'], ['fruity', 'Fruity & berry', 'Blueberry, plum, jam'],
@@ -202,7 +216,7 @@ window.SITE = {
   verdicts: { loved: 'Loved it', liked: 'Liked it', ok: 'It was OK', dislike: 'Not for me' },
 
   /* ---------- Brew methods (journal dropdown) ---------- */
-  brews: { pourover: 'Pour-over', aeropress: 'AeroPress', frenchpress: 'French press', filter: 'South Indian filter', moka: 'Moka pot', espresso: 'Espresso' },
+  brews: { pourover: 'Pour-over', aeropress: 'AeroPress', frenchpress: 'French press', filter: 'South Indian filter', moka: 'Moka pot', espresso: 'Espresso', coldbrew: 'Cold brew', instant: 'Instant', cafe: 'Café' },
 
   /* ---------- Shelf freshness windows (days after roasting) ----------
      [start of best window, end of best window] per roast level. */

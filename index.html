@@ -51,6 +51,7 @@
     <div class="hero-text" id="hero">
       <h1 id="top">Every cup was once a seed.</h1>
       <p>Scroll to follow one Arabica bean back to the soil, then forward again to your pour-over.</p>
+      <ul class="hero-feat" id="heroFeat" aria-label="What you can do on CoffeeKo"></ul>
       <div class="hero-act"><a class="cta hero-cta" href="#profile" data-act="join">Build my coffee personality →</a><span class="hero-note">Free account · 1-minute quiz</span></div>
       <div class="scroll-cue"><span></span>Scroll</div>
     </div>
@@ -62,7 +63,7 @@
 <section id="app" aria-label="Your coffee">
   <nav class="subnav" aria-label="Your coffee sections">
     <div class="subnav-in">
-      <a href="#profile" id="navProfile">Personality</a><a href="#explore">Explore</a><a href="#journal">Journal</a><a href="#shelf">Shelf</a>
+      <a href="#profile" id="navProfile">Personality</a><a href="#explore">Explore</a><a href="#journal">Journal</a><a href="#shelf">Shelf</a><a href="#wall">Brew Wall</a>
       <span class="sn-sp"></span><span class="store-note" id="storeNote">Loading…</span>
       <button class="btn quiet small" id="signOut" aria-label="Your account"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Account</span></button>
     </div>
@@ -85,6 +86,11 @@
       <div id="shelf-body"></div>
     </section>
   </div>
+  <!-- Brew Wall: open to everyone, signed in or not -->
+  <section class="dsec wall-sec" id="wall" aria-labelledby="wh">
+    <div class="sec-h"><div><h2 id="wh">Brew Wall</h2><p>Home brewers’ coffee moments, shared from Instagram. Every post is credited to its creator.</p></div></div>
+    <div id="wall-body"></div>
+  </section>
 </section>
 </main>
 <footer><span>Coffees, prices and photos come from each roaster’s own shop.</span><nav class="foot-links"><a href="#contact" data-act="contact">Feedback &amp; contact</a><a href="privacy.html">Privacy</a></nav></footer>
