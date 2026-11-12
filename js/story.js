@@ -42,12 +42,15 @@ STAGES.forEach((s,i)=>{
 const line=document.createElement('div');line.className='story-line';document.getElementById('stage').appendChild(line);
 const stage=document.getElementById('stage'), credit=document.getElementById('credit'), shade=document.querySelector('.shade'), hero=document.getElementById('hero'), story=document.getElementById('story'), bar=document.getElementById('bar');
 /* Load photos in order, a little ahead of the scroll position */
-function want(P){STAGES.forEach((s,i)=>{if(i&&!s.img.src&&P>s.a-.12)s.img.src=s.src;if(s.det&&!s.det.src&&P>.004)s.det.src=s.dsrc;});}
-addEventListener('load',()=>{const q=STAGES.filter((s,i)=>i);let k=0;const next=()=>{const s=q[k++];if(!s)return;if(!s.img.src)s.img.src=s.src;setTimeout(()=>window.requestIdleCallback?requestIdleCallback(next,{timeout:1500}):next(),500);};
-  const first=STAGES[0];if(first.det&&!first.det.src)first.det.src=first.dsrc;setTimeout(next,1200);});
+function want(P){STAGES.forEach((s,i)=>{if(i&&!s.img.src&&P>s.a-.45)s.img.src=s.src;if(s.det&&!s.det.src&&P>.004)s.det.src=s.dsrc;});}
+addEventListener('load',()=>{const q=STAGES.filter((s,i)=>i);let k=0;const next=()=>{const s=q[k++];if(!s)return;if(!s.img.src)s.img.src=s.src;setTimeout(()=>window.requestIdleCallback?requestIdleCallback(next,{timeout:600}):next(),150);};   /* the story is short now, so fetch every photo early */
+  const first=STAGES[0];if(first.det&&!first.det.src)first.det.src=first.dsrc;setTimeout(next,400);});
+/* "Skip story": jump straight to CoffeeKo from anywhere in the story */
+const skip=document.createElement('button');skip.className='story-skip';skip.type='button';skip.hidden=true;skip.textContent='Skip story ↓';
+skip.onclick=()=>{const app=document.getElementById('app');if(app)scrollTo({top:app.offsetTop,behavior:'smooth'});};document.body.appendChild(skip);
 function render(){
   const r=story.getBoundingClientRect();
-  const P=clamp(-r.top/(story.offsetHeight-innerHeight));want(P);
+  const P=clamp(-r.top/(story.offsetHeight-innerHeight));want(P);skip.hidden=!(P>.02&&P<.93);
   const onStory=r.bottom>60;
   bar.classList.toggle('on-story',onStory);bar.classList.toggle('on-app',!onStory);
   shade.style.opacity=ss(.1,.135,P);line.style.width=(P*100).toFixed(2)+'%';
@@ -93,4 +96,16 @@ let ticking=false;
 addEventListener('scroll',()=>{if(!ticking){ticking=true;requestAnimationFrame(()=>{ticking=false;render();});}},{passive:true});
 addEventListener('resize',render);
 render();
+
+/* Clean stop at the end of the story: a fast flick that started in the story and carried past it
+   settles exactly at the top of CoffeeKo (sign-up form or Personality), never halfway into it.
+   Scrolling up, or scrolling that starts inside CoffeeKo, is never moved. */
+{let startY=null,idle,touching=false;const appEl=document.getElementById('app');
+ addEventListener('touchstart',()=>{touching=true;},{passive:true});addEventListener('touchend',()=>{touching=false;},{passive:true});
+ const settle=()=>{const y=scrollY,s0=startY;startY=null;if(touching||s0===null||!appEl||document.documentElement.classList.contains('app-resume'))return;
+   if(document.body.style.overflow==='hidden')return;   // a sheet or full-screen view is open
+   const top=appEl.offsetTop,vh=innerHeight;
+   if(s0<top-vh*.2&&y>s0&&y>top-vh*.5&&y<top+vh*.9&&Math.abs(y-top)>4)scrollTo({top,behavior:'smooth'});};
+ addEventListener('scroll',()=>{if(startY===null)startY=scrollY;clearTimeout(idle);idle=setTimeout(settle,'onscrollend' in window?400:160);},{passive:true});
+ if('onscrollend' in window)addEventListener('scrollend',()=>{clearTimeout(idle);settle();});}
 })();

@@ -23,3 +23,6 @@ from (
 where c.id = k.id and c.kind is null;
 
 create index if not exists catalog_kind_idx on public.catalog(kind);
+
+-- Visitors read the catalogue column by column; new columns must be granted too
+grant select (kind, pack_count) on public.catalog to anon, authenticated;

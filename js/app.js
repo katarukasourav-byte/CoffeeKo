@@ -40,9 +40,13 @@ async function init(){
     if(ev==='SIGNED_OUT'){location.reload();}
   });
   if(location.hash==='#reset'&&!API.demo){showAuth('newpass');return;}
-  if(!me){document.documentElement.classList.remove('app-resume');showAuth(knownDevice()?'signin':'signup');if(/^#(profile|explore|journal|shelf|app)$/.test(location.hash))setTimeout(()=>scrollTo(0,document.getElementById('app').offsetTop),60);return;}
+  if(!me){document.documentElement.classList.remove('app-resume');showAuth(knownDevice()?'signin':'signup');sharedIn();if(/^#(profile|explore|journal|shelf|app)$/.test(location.hash))setTimeout(()=>scrollTo(0,document.getElementById('app').offsetTop),60);return;}
   await loadUser();
 }
+/* Shared from Instagram's share menu to the installed app (Android): open the Brew Wall form with the link filled in */
+function sharedIn(){const sp=new URLSearchParams(location.search),t=['url','text','title'].map(k=>sp.get(k)||'').join(' ');if(!/instagram\.com\//i.test(t))return;
+  const link=(t.match(/https?:\/\/[^\s]*instagram\.com\/[^\s]+/i)||[t.trim()])[0];try{history.replaceState(null,'',location.pathname+'#wall');}catch(e){}
+  setTimeout(()=>{document.documentElement.classList.remove('app-resume');document.getElementById('wall')?.scrollIntoView();import('./wall.js').then(w=>w.shareLink(wallCtx(),link));},400);}
 async function loadUser(){
   document.body.classList.add('signed-in');if(!API.demo)try{localStorage.setItem('ck-has-account','1');}catch(e){}
   userName=API.demo?'':(me.name||'').split(' ')[0];
@@ -54,7 +58,7 @@ async function loadUser(){
   }catch(e){console.warn(e);toast('Couldn’t load your coffee. Refresh to try again.');}
   /* Quiz taken before signing up: save it to the new account */
   try{const pend=JSON.parse(localStorage.getItem(PENDING)||'null');if(pend&&!state.prefs){state.prefs=pend;saveProfile();setTimeout(()=>toast('Quiz answers saved'),800);}localStorage.removeItem(PENDING);}catch(e){}
-  migrate();renderAll();route();loadCatalog();
+  migrate();renderAll();route();loadCatalog();sharedIn();
   /* App reopened: go straight to the section used last (Personality the first time) */
   if(document.documentElement.classList.contains('app-resume')){let id='profile';try{id=localStorage.getItem('ck-last-section')||'profile';}catch(e){}
     const t=document.getElementById(id)||document.getElementById('profile');requestAnimationFrame(()=>jumpTo(t));}
@@ -1202,9 +1206,12 @@ document.addEventListener('click',e=>{
 document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches?.('article[data-act=coffee]')){e.preventDefault();e.target.click();}});
 /* floating buttons: Scan a bag, Back to top */
 (function(){const top=$('#toTop'),fabs=$('#fabs');let tk=false;
-  const upd=()=>{tk=false;const app=document.getElementById('app').getBoundingClientRect().top;const inApp=app<innerHeight*.5;fabs.classList.toggle('on',inApp&&document.body.classList.contains('signed-in'));top.hidden=!(inApp&&scrollY>document.getElementById('app').offsetTop+innerHeight*.9);};
+  const upd=()=>{tk=false;const app=document.getElementById('app').getBoundingClientRect().top;const inApp=app<innerHeight*.5;fabs.classList.toggle('on',inApp&&document.body.classList.contains('signed-in'));top.hidden=!(inApp&&(scrollY>document.getElementById('app').offsetTop+innerHeight*.9||document.documentElement.classList.contains('app-resume')&&document.body.classList.contains('signed-in')));};
   addEventListener('scroll',()=>{if(!tk){tk=true;requestAnimationFrame(upd);}},{passive:true});
-  top.onclick=()=>{scrollTo({top:document.getElementById('app').offsetTop,behavior:'instant'});const p=document.getElementById('profile');p.classList.remove('jumped');void p.offsetWidth;p.classList.add('jumped');};
+  /* The installed app opens straight in the dashboard with the story hidden; the CoffeeKo logo, or ↑ when already at the top, brings the story back */
+  const showStory=()=>{const H=document.documentElement;if(H.classList.contains('app-resume')){H.classList.remove('app-resume');dispatchEvent(new Event('resize'));}scrollTo({top:0,behavior:'instant'});requestAnimationFrame(upd);};
+  document.querySelector('#bar .brand')?.addEventListener('click',e=>{e.preventDefault();showStory();});
+  top.onclick=()=>{const at=document.getElementById('app').offsetTop;if(Math.abs(scrollY-at)<8)return showStory();scrollTo({top:at,behavior:'instant'});const p=document.getElementById('profile');p.classList.remove('jumped');void p.offsetWidth;p.classList.add('jumped');};
   new MutationObserver(upd).observe(document.body,{attributes:true,attributeFilter:['class']});})();
 initSearch();
 /* ---------- Installable app ---------- */

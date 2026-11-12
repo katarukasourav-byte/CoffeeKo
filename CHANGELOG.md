@@ -13,6 +13,44 @@ an older deploy and choose "Publish deploy". That rolls back all the code (not t
 
 ---
 
+## 2026-11-13 · Fast seed-to-cup story, Skip button
+- **What:**
+  - **Phones:** the whole story is 2 screens of scrolling (it was 11), so two normal swipes get
+    through it. Dragging slowly still shows every photo and caption.
+  - **Laptops:** 3.5 screens.
+  - **Skip story ↓:** a button at the top right jumps straight to CoffeeKo.
+  - **Photos:** all of them load in the first few seconds, so none are missing at speed.
+  - **Clean stop:** a fast flick that starts in the story and carries past it settles exactly at
+    the top of CoffeeKo (sign-up form or Personality), never halfway. Scrolling up, or scrolling
+    that starts inside CoffeeKo, is never moved.
+    - **Where:** the "Clean stop" block at the end of `js/story.js`. Delete it to remove.
+- **Code:**
+  - `css/style.css`: `#story` height (450vh, and 300vh on phones) and `.story-skip`.
+  - `js/story.js`: the skip button lines before `render()`, `want()` look-ahead .45, and the
+    faster preload timing in the `load` handler.
+- **Database:** none.
+- **Remove:** set `#story` back to `height:1100vh`, and delete the media rule and the skip button.
+
+## 2026-11-12 · Brew Wall sharing made easier; story back in the installed app
+- **What:**
+  - **Share form steps:** two buttons, "1 · Open Instagram" (opens your profile) and
+    "2 · Paste the link" (reads the copied link).
+  - **Handle filled in:** from the link when it names the account, otherwise the handle you used
+    last time.
+  - **Story links:** they get a clear message, because stories can't be embedded.
+  - **Errors:** they also pop up as a message, so they're not missed.
+  - **Android, installed app:** CoffeeKo appears in Instagram's Share menu and opens the form with
+    the link already filled in.
+  - **Installed app:** the CoffeeKo logo, or ↑ at the top of the dashboard, brings back the
+    seed-to-cup story.
+- **Code:**
+  - `js/wall.js`: `STORY`, `parseLink()`, `shareLink()`, `lastHandle()`, `MYHANDLE`, `openShare()`.
+  - `js/app.js`: `sharedIn()` and `showStory()`.
+  - `manifest.webmanifest`: `share_target`.
+  - `css/style.css`: `.wsteps`.
+- **Database:** none. The handle is remembered on the device (`ck-ig-handle`).
+- **Remove:** delete `share_target` from the manifest, and the `.wsteps` buttons in `openShare()`.
+
 ## 2026-11-12 · "What you can do" list on the sign-up screen
 - **What:** five short lines next to the sign-up form showing the main features: personality,
   matches, journal, shelf and buying direct.

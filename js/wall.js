@@ -4,7 +4,9 @@
 
 const LINK = /instagram\.com\/(?:[A-Za-z0-9._]+\/)?(p|reels?|tv)\/([A-Za-z0-9_-]{5,40})/i;
 const HANDLE_IN_LINK = /instagram\.com\/([A-Za-z0-9._]{1,30})\/(?:p|reels?|tv)\//i;
+const STORY = /instagram\.com\/stories\/([A-Za-z0-9._]{1,30})\//i;
 export function parseLink(s) {
+  const st = String(s || '').match(STORY); if (st) return { story: true, handle: st[1] };   // stories expire and can't be embedded
   const m = String(s || '').match(LINK); if (!m) return null;
   const kind = m[1].toLowerCase().startsWith('reel') ? 'reel' : m[1].toLowerCase();
   const h = String(s).match(HANDLE_IN_LINK);
@@ -33,8 +35,14 @@ export async function renderWall(el, ctx) {
       : VIEW === 'mine' ? `<div class="wall-empty"><p>You haven’t shared anything yet. Share a photo or reel of your coffee from Instagram – it shows with your handle and links back to you.</p></div>`
       : `<div class="wall-empty"><p><b>Be the first on the Brew Wall.</b> Share a photo or reel of your coffee from Instagram – every post shows your handle and links back to you.</p></div>`}
   </div>`;
-  bind(el, ctx, () => renderWall(el, ctx));
+  REFRESH = () => renderWall(el, ctx);
+  bind(el, ctx, REFRESH);
 }
+let REFRESH = () => {};
+const MYHANDLE = () => lastHandle() || (POSTS.find(p => p.mine) || {}).handle || '';
+/* Opened from Instagram's share menu (installed app on Android) or with a link: the share form, link filled in */
+export function shareLink(ctx, link) { if (!ctx.signedIn()) return ctx.needSignIn('Sign in to share your post on the Brew Wall'); openShare(ctx, REFRESH, link); }
+const lastHandle = () => { try { return localStorage.getItem('ck-ig-handle') || ''; } catch (e) { return ''; } };
 
 function card(p, { esc }) {
   const i = POSTS.filter(x => x.status === 'approved').indexOf(p);
@@ -84,15 +92,16 @@ function openFeed(start, ctx) {
   track.addEventListener('scroll', () => v.classList.add('moved'), { once: true, passive: true });
 }
 
-function openShare(ctx, refresh) {
+function openShare(ctx, refresh, link = '') {
   const { esc, API, state } = ctx;
   const coffees = [...new Set((state.journal || []).filter(e => e.status === 'rated').map(e => [e.name, e.roaster].filter(Boolean).join(' · ')))].slice(0, 60);
   ctx.openSheet(`${ctx.head('Share on the Brew Wall')}
     <p class="muted">Paste the link to one of your Instagram posts or reels about coffee. It shows here with your handle, and links back to you.</p>
-    <label class="fld"><span>Instagram post link</span><input id="wLink" inputmode="url" autocomplete="off" placeholder="https://www.instagram.com/p/…" autofocus></label>
-    <p class="fine muted">In Instagram: tap ⋯ or the share arrow on your post → <b>Copy link</b>, then paste it here.</p>
+    <div class="wsteps"><a class="btn ghost small" id="wOpenIg" href="https://www.instagram.com/${esc(MYHANDLE())}" target="_blank" rel="noopener">1 · Open Instagram</a><button class="btn ghost small" id="wPaste" type="button">2 · Paste the link</button></div>
+    <p class="fine muted">On your post or reel, tap the share arrow (or ⋯) → <b>Copy link</b>, come back here and tap Paste. Stories can’t be shared: they disappear after a day and Instagram doesn’t let other sites show them.</p>
+    <label class="fld"><span>Instagram post link</span><input id="wLink" inputmode="url" autocomplete="off" placeholder="https://www.instagram.com/p/…" value="${esc(link)}"></label>
     <div id="wPrev"></div>
-    <label class="fld"><span>Your Instagram handle</span><input id="wHandle" autocomplete="off" placeholder="@yourhandle" maxlength="31"></label>
+    <label class="fld"><span>Your Instagram handle</span><input id="wHandle" autocomplete="off" placeholder="@yourhandle" maxlength="31" value="${MYHANDLE() ? '@' + esc(MYHANDLE()) : ''}"></label>
     <label class="fld"><span>Caption <small>(optional)</small></span><input id="wCap" maxlength="160" placeholder="e.g. Sunday V60 with a washed Ethiopian"></label>
     ${coffees.length ? `<label class="fld"><span>Which coffee? <small>(optional)</small></span><select id="wCoffee"><option value="">–</option>${coffees.map(c => `<option>${esc(c)}</option>`).join('')}</select></label>` : ''}
     <label class="chk"><input type="checkbox" id="wOk"> <span>This is my post, or the creator said I can share it.</span></label>
@@ -102,19 +111,27 @@ function openShare(ctx, refresh) {
   let parsed = null;
   const check = () => {
     parsed = parseLink($('#wLink').value.trim());
-    $('#wPrev').innerHTML = parsed ? `<div class="wprev">${frame(parsed)}</div>` : '';
-    if (parsed?.handle && !$('#wHandle').value) $('#wHandle').value = '@' + parsed.handle;
+    $('#wErr').textContent = parsed?.story ? 'That’s a story link. Stories can’t be shown outside Instagram – share a post or reel instead.' : '';
+    $('#wPrev').innerHTML = parsed && !parsed.story ? `<div class="wprev">${frame(parsed)}</div>` : '';
+    if (parsed?.handle) $('#wHandle').value = '@' + parsed.handle;   // the link names the account: use it
+  };
+  if (link) setTimeout(check, 0);
+  $('#wPaste').onclick = async () => {
+    try { const t = await navigator.clipboard.readText(); $('#wLink').value = (t || '').trim(); check(); if (!parsed) $('#wErr').textContent = 'The copied text isn’t an Instagram post link. Copy the link again in Instagram.'; }
+    catch (e) { $('#wLink').focus(); ctx.toast('Long-press the link box and choose Paste'); }
   };
   $('#wLink').addEventListener('input', () => { clearTimeout(check.t); check.t = setTimeout(check, 350); });
   $('#wLink').addEventListener('paste', () => setTimeout(check, 30));
   $('#wGo').onclick = async () => {
-    const err = m => { $('#wErr').textContent = m; };
-    check(); if (!parsed) return err('That doesn’t look like an Instagram post or reel link.');
+    const err = m => { $('#wErr').textContent = m; if (m) { ctx.toast(m); $('#wErr').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } };
+    check(); if (parsed?.story) return err('That’s a story link. Stories can’t be shown outside Instagram – share a post or reel instead.');
+    if (!parsed) return err('That doesn’t look like an Instagram post or reel link. In Instagram tap the share arrow → Copy link.');
     const handle = $('#wHandle').value.trim().replace(/^@/, '');
     if (!/^[A-Za-z0-9._]{1,30}$/.test(handle)) return err('Add your Instagram handle (letters, numbers, dots and underscores).');
     if (!$('#wOk').checked) return err('Please confirm it’s your post, or that you have the creator’s OK.');
     $('#wGo').disabled = true; err('');
     try {
+      try { localStorage.setItem('ck-ig-handle', handle); } catch (e) {}
       await API.wallAdd({ ig_code: parsed.ig_code, ig_kind: parsed.ig_kind, handle, caption: $('#wCap').value.trim() || null, coffee: $('#wCoffee')?.value || null });
       ctx.closeSheet(() => { ctx.toast('Thanks! Your post appears once it’s reviewed.'); refresh(); });
     } catch (e) {

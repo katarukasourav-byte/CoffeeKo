@@ -8,14 +8,45 @@
   "orientation": "portrait",
   "background_color": "#000000",
   "theme_color": "#0B0907",
-  "categories": ["food", "lifestyle"],
+  "categories": [
+    "food",
+    "lifestyle"
+  ],
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "shortcuts": [
-    { "name": "Scan a bag", "url": "/?source=app#scan" },
-    { "name": "My shelf", "url": "/?source=app#shelf" }
-  ]
+    {
+      "name": "Scan a bag",
+      "url": "/?source=app#scan"
+    },
+    {
+      "name": "My shelf",
+      "url": "/?source=app#shelf"
+    }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }
